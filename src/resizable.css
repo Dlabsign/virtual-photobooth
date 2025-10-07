@@ -1,24 +1,28 @@
-/* src/resizable.css */
+/* src/resizable.css /
 .react-resizable {
-  position: relative;
-  /* Tambahkan styling lain jika diperlukan */
-}
+position: relative;
+/ Tambahkan styling lain jika diperlukan */
 
 .react-resizable-handle {
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  background: #4f46e5; /* Warna Biru Indigo Tailwind */
-  border: 1px solid white;
-  border-radius: 50%;
-  z-index: 20;
+position: absolute;
+width: 20px;
+height: 20px;
+background: #4f46e5; /* Warna Biru Indigo Tailwind /
+border: 3px solid #ffffff;
+border-radius: 50%;
+opacity: 0.8;
+z-index: 30; / Pastikan di atas frame (z-20) dan foto (z-10) */
+box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
 }
 
 /* Handle di pojok kanan bawah untuk resize */
 .react-resizable-handle-se {
-  bottom: 0;
-  right: 0;
-  cursor: se-resize;
+bottom: 0;
+right: 0;
+cursor: se-resize;
 }
 
-/* Tambahkan styling untuk handle lain jika diperlukan */
+/* Tambahkan styling hover untuk feedback */
+.react-resizable-handle:hover {
+opacity: 1;
+}

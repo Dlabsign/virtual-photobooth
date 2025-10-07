@@ -6,6 +6,7 @@ import { Resizable } from 'react-resizable';
 import '../resizable.css'; // Pastikan file CSS ini ada dan diimpor
 
 const videoConstraints = {
+    // Kami menjaga ini di 720p tetapi rasionya akan di-crop oleh container UI
     width: 720,
     height: 720,
     facingMode: 'user'
@@ -15,11 +16,12 @@ const Photobooth = () => {
     const webcamRef = useRef(null);
     const [imageSrc, setImageSrc] = useState(null);
     const [mode, setMode] = useState('initial'); // 'initial', 'camera', 'upload', 'edit'
-    const [photoSize, setPhotoSize] = useState({ width: 200, height: 200 });
+    // Ukuran default pratinjau foto
+    const [photoSize, setPhotoSize] = useState({ width: 250, height: 250 });
     const [photoPosition, setPhotoPosition] = useState({ x: 0, y: 0 });
 
-    // Referensi untuk canvas output final
     const canvasRef = useRef(null);
+    const previewContainerRef = useRef(null);
 
     const capture = useCallback(() => {
         const screenshot = webcamRef.current.getScreenshot();
@@ -50,147 +52,161 @@ const Photobooth = () => {
     const handleReset = () => {
         setImageSrc(null);
         setMode('initial');
-        setPhotoSize({ width: 200, height: 200 });
+        setPhotoSize({ width: 250, height: 250 });
         setPhotoPosition({ x: 0, y: 0 });
     };
 
-    // Fungsi untuk menggabungkan foto dan frame lalu mendownloadnya
     const handleDownload = () => {
-        if (!imageSrc) return;
+        if (!imageSrc || !canvasRef.current || !previewContainerRef.current) return;
 
         const canvas = canvasRef.current;
-        if (!canvas) return;
-
         const ctx = canvas.getContext('2d');
 
-        // Ukuran frame adalah 1080x1350
+        // Dimensi Frame Final (1080x1350)
         const frameWidth = 1080;
         const frameHeight = 1350;
+
+        // Dimensi Container Pratinjau (sesuai dengan UI saat ini)
+        const previewWidth = previewContainerRef.current.offsetWidth;
+        const previewHeight = previewContainerRef.current.offsetHeight;
 
         canvas.width = frameWidth;
         canvas.height = frameHeight;
 
-        // 1. Gambar frame terlebih dahulu
+        // Hitung faktor skala dari pratinjau (misal 400x500) ke final output (1080x1350)
+        const scaleFactorX = frameWidth / previewWidth;
+        const scaleFactorY = frameHeight / previewHeight;
+
         const frameImage = new Image();
-        frameImage.src = '/frame.png'; // Pastikan path ini benar
+        frameImage.crossOrigin = 'Anonymous';
+        frameImage.src = '/frame.png';
 
         frameImage.onload = () => {
+            // 1. Gambar frame terlebih dahulu
             ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
 
-            // 2. Gambar foto pengguna di atas frame
             const userPhoto = new Image();
+            userPhoto.crossOrigin = 'Anonymous';
             userPhoto.src = imageSrc;
 
             userPhoto.onload = () => {
-                // Skalakan posisi dan ukuran foto pengguna agar sesuai dengan dimensi canvas (1080x1350)
-                // Kita asumsikan area editing di UI adalah persegi (max-w-md aspect-square)
-                // dan frame 1080x1350 memiliki rasio 4:5.
-                // Untuk penyederhanaan, kita akan menggambar relatif terhadap canvas output akhir.
-                // Penyesuaian ini mungkin perlu disempurnakan tergantung area 'hole' di frame Anda.
+                // 2. Skalakan posisi dan ukuran foto pengguna
+                const finalPhotoWidth = photoSize.width * scaleFactorX;
+                const finalPhotoHeight = photoSize.height * scaleFactorY;
+                const finalPhotoX = photoPosition.x * scaleFactorX;
+                const finalPhotoY = photoPosition.y * scaleFactorY;
 
-                // Misalnya, jika area editing visual di UI adalah 400px x 400px,
-                // dan foto di drag/resize dalam area tersebut.
-                // Anda perlu menghitung proporsi dari area editing ke canvas 1080x1350.
-                // Jika rasio 'canvas' preview di UI adalah 400px (lebar) x 500px (tinggi)
-                // dan frame adalah 1080x1350 (juga rasio 4:5), maka perhitungannya lebih mudah.
+                // 3. Gambar foto pengguna
+                ctx.drawImage(userPhoto, finalPhotoX, finalPhotoY, finalPhotoWidth, finalPhotoHeight);
 
-                // Asumsi: Kita akan menggambar foto pengguna secara proporsional di tengah frame
-                // atau sesuai dengan posisi yang diatur oleh Draggable/Resizable.
-                // Untuk mempermudah, kita akan asumsikan skala perbandingan dari preview ke final
-                const scaleFactorX = frameWidth / 400; // Jika preview canvas adalah max 400px wide
-                const scaleFactorY = frameHeight / 500; // Jika preview canvas adalah max 500px tall (contoh)
-
-                // Ini adalah contoh sederhana. Anda perlu menyesuaikan scaleFactor
-                // berdasarkan dimensi persis dari area editable di frame Anda.
-                const currentPhotoWidth = photoSize.width * scaleFactorX;
-                const currentPhotoHeight = photoSize.height * scaleFactorY;
-                const currentPhotoX = photoPosition.x * scaleFactorX;
-                const currentPhotoY = photoPosition.y * scaleFactorY;
-
-                ctx.drawImage(userPhoto, currentPhotoX, currentPhotoY, currentPhotoWidth, currentPhotoHeight);
-
-                // Download gambar yang sudah digabungkan
-                const dataURL = canvas.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.href = dataURL;
-                link.download = 'photobooth-result.png';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                // Download
+                try {
+                    const dataURL = canvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    link.href = dataURL;
+                    link.download = 'photobooth-result.png';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } catch (error) {
+                    console.error("Gagal mendownload gambar:", error);
+                    alert("Error: Gagal memproses gambar untuk diunduh.");
+                }
             };
+            userPhoto.onerror = () => alert("Gagal memuat foto pengguna.");
+        };
+
+        frameImage.onerror = () => {
+            console.error("Gagal memuat file frame.png. Cek path '/frame.png'");
+            alert("Error: File frame.png tidak ditemukan. Pastikan file ada di folder public.");
         };
     };
 
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
-            <h1 className="text-3xl font-bold mb-6 text-indigo-600">Virtual Photobooth 📸</h1>
-            <div className="w-full max-w-xl bg-white shadow-xl rounded-lg overflow-hidden p-6">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-grey-900 p-1">
+            {/* <h1 className="text-3xl font-extrabold mb-8 text-indigo-700">Virtual Photobooth 📸</h1> */}
+            <div className="w-full max-w-xl  shadow-2xl overflow-hidden ">
 
                 {/* Kontrol Awal */}
                 {mode === 'initial' && (
                     <div className="flex flex-col space-y-4">
                         <button
                             onClick={() => setMode('camera')}
-                            className="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-300"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded shadow-md transition duration-300 transform hover:scale-[1.02]"
                         >
                             Buka Kamera 📷
                         </button>
-                        <label className="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-300 text-center cursor-pointer">
+                        <label className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded shadow-md transition duration-300 text-center cursor-pointer transform hover:scale-[1.02]">
                             Unggah Foto
                             <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
                         </label>
                     </div>
                 )}
 
-                {/* Mode Kamera */}
+                {/* Mode Kamera (Frame ditampilkan di atas Webcam) */}
                 {mode === 'camera' && (
                     <div className="flex flex-col items-center space-y-4">
-                        <div className="border-4 border-indigo-500 rounded-lg overflow-hidden w-full max-w-md aspect-square">
+                        {/* Container Webcam + Frame (Proporsional 4:5) */}
+                        <div
+                            ref={previewContainerRef} // Ref untuk mendapatkan dimensi saat runtime
+                            className="relative w-full max-w-sm aspect-[4/5] bg-gray-800 rounded-lg overflow-hidden shadow-2xl"
+                        >
+                            {/* 1. Webcam di bawah Frame (z-10) */}
                             <Webcam
                                 audio={false}
                                 ref={webcamRef}
                                 screenshotFormat="image/jpeg"
                                 videoConstraints={videoConstraints}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover relative z-10"
+                            />
+
+                            {/* 2. FRAME SEBAGAI OVERLAY DI ATAS WEBCAM (z-20) */}
+                            <img
+                                src="/frame.png"
+                                alt="Bingkai Photobooth"
+                                className="absolute inset-0 w-full h-full z-20 object-contain pointer-events-none"
                             />
                         </div>
+
                         <div className="flex space-x-4">
                             <button
                                 onClick={capture}
-                                className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-full shadow-lg transition duration-300"
+                                className="bg-red-500 flex-1  hover:bg-red-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
+                                
                             >
-                                Ambil Foto 📸
+                                Ambil Foto
                             </button>
                             <button
                                 onClick={handleReset}
-                                className="bg-gray-400 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-full shadow-lg transition duration-300"
+                                className="bg-gray-400 flex-1 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
                             >
                                 Batal
                             </button>
                         </div>
+
                     </div>
                 )}
 
-                {/* Mode Edit (Canvas Preview + Manipulasi) */}
+                {/* Mode Edit (Frame ditampilkan di atas Foto) */}
                 {mode === 'edit' && imageSrc && (
-                    <div className="flex flex-col items-center space-y-4">
+                    <div className="flex flex-col items-center space-y-6">
 
-                        {/* Area "Canvas" - Relatif untuk Manipulasi
-                Menggunakan aspect-h-[1350] / aspect-w-[1080] untuk rasio 1080x1350 (4:5)
-                Kita akan membuat div ini memiliki lebar max-w-md (misal 448px)
-                dan tinggi proporsional. 448 * (1350/1080) = 448 * 1.25 = 560px
-            */}
-                        <div className="relative w-full max-w-md aspect-[4/5] bg-gray-200 border-4 border-gray-700 rounded-lg overflow-hidden">
+                        {/* Area "Canvas" - Proporsional 4:5 */}
+                        <div
+                            ref={previewContainerRef} // Ref untuk mendapatkan dimensi saat runtime
+                            className="relative w-full max-w-sm aspect-[4/5] bg-gray-800 border-8 border-gray-700 rounded-lg overflow-hidden shadow-2xl"
+                        >
+                            {/* 1. FRAME SEBAGAI OVERLAY (z-20) */}
                             <img
-                                src="/frame.png" // Path ke frame PNG Anda di folder public
+                                src="/frame.png"
                                 alt="Bingkai Photobooth"
-                                className="absolute inset-0 w-full h-full z-10 object-cover pointer-events-none"
+                                className="absolute inset-0 w-full h-full z-20 object-contain pointer-events-none"
                             />
 
+                            {/* 2. Draggable/Resizable Foto (z-10) */}
                             <Draggable
-                                bounds="parent" // Batasi geseran di dalam "canvas" preview
-                                defaultPosition={{ x: 0, y: 0 }} // Set posisi awal foto (bisa disesuaikan)
+                                bounds="parent"
                                 onStop={onDragStop}
                                 position={photoPosition}
                             >
@@ -198,8 +214,9 @@ const Photobooth = () => {
                                     width={photoSize.width}
                                     height={photoSize.height}
                                     onResize={onResize}
-                                    minConstraints={[50, 50]} // Ukuran minimal foto
-                                    maxConstraints={[400, 500]} // Ukuran maksimal foto agar tidak melebihi area frame (disesuaikan dengan rasio 4:5)
+                                    minConstraints={[50, 50]}
+                                    // Batasan sekitar 400x500 di UI Preview
+                                    maxConstraints={[400, 500]}
                                 >
                                     <img
                                         src={imageSrc}
@@ -207,9 +224,9 @@ const Photobooth = () => {
                                         style={{
                                             width: photoSize.width,
                                             height: photoSize.height,
-                                            cursor: 'move', // Kursor geser
+                                            cursor: 'move',
                                         }}
-                                        className="object-cover absolute"
+                                        className="object-cover absolute z-10"
                                     />
                                 </Resizable>
                             </Draggable>
@@ -218,14 +235,14 @@ const Photobooth = () => {
                         {/* Kontrol Edit */}
                         <div className="flex space-x-4">
                             <button
-                                onClick={handleDownload} // Panggil fungsi download
-                                className="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow-lg transition duration-300"
+                                onClick={handleDownload}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-lg shadow-lg transition duration-300 transform hover:scale-[1.05]"
                             >
                                 Selesai & Download 💾
                             </button>
                             <button
                                 onClick={handleReset}
-                                className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow-lg transition duration-300"
+                                className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-6 rounded-lg shadow-lg transition duration-300 transform hover:scale-[1.05]"
                             >
                                 Ulangi 🔄
                             </button>
