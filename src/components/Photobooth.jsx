@@ -5,12 +5,6 @@ import Draggable from 'react-draggable';
 import { Resizable } from 'react-resizable';
 import '../resizable.css'; // Pastikan file CSS ini ada dan diimpor
 
-const videoConstraints = {
-    // Kami menjaga ini di 720p tetapi rasionya akan di-crop oleh container UI
-    width: 720,
-    height: 720,
-    facingMode: 'user'
-};
 
 const Photobooth = () => {
     const webcamRef = useRef(null);
@@ -19,6 +13,15 @@ const Photobooth = () => {
     // Ukuran default pratinjau foto
     const [photoSize, setPhotoSize] = useState({ width: 250, height: 250 });
     const [photoPosition, setPhotoPosition] = useState({ x: 0, y: 0 });
+    const [notification, setNotification] = useState("");
+
+    const [facingMode, setFacingMode] = useState('user');
+    const videoConstraints = {
+        width: 1080,
+        height: 1350,
+        facingMode: facingMode,
+    };
+
 
     const canvasRef = useRef(null);
     const previewContainerRef = useRef(null);
@@ -39,6 +42,7 @@ const Photobooth = () => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
 
+        // Ukuran frame yang diinginkan
         const frameWidth = 1080;
         const frameHeight = 1350;
         canvas.width = frameWidth;
@@ -52,21 +56,44 @@ const Photobooth = () => {
         userPhoto.crossOrigin = 'Anonymous';
         userPhoto.src = imageSrc;
 
-        frameImage.onload = () => {
-            userPhoto.onload = () => {
-                // Gambar foto user
-                ctx.drawImage(userPhoto, 0, 0, frameWidth, frameHeight);
-                // Overlay frame
-                ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
-                // Download
-                const dataURL = canvas.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.href = dataURL;
-                link.download = 'photobooth-result.png';
-                link.click();
-            };
-        };
+        Promise.all([
+            new Promise((resolve) => (frameImage.onload = resolve)),
+            new Promise((resolve) => (userPhoto.onload = resolve)),
+        ]).then(() => {
+            const imgRatio = userPhoto.width / userPhoto.height;
+            const frameRatio = frameWidth / frameHeight;
+
+            let sx, sy, sWidth, sHeight;
+
+            // Jika gambar lebih lebar → crop sisi kiri-kanan
+            if (imgRatio > frameRatio) {
+                sHeight = userPhoto.height;
+                sWidth = sHeight * frameRatio;
+                sx = (userPhoto.width - sWidth) / 2;
+                sy = 0;
+            }
+            // Jika gambar lebih tinggi → crop atas-bawah
+            else {
+                sWidth = userPhoto.width;
+                sHeight = sWidth / frameRatio;
+                sx = 0;
+                sy = (userPhoto.height - sHeight) / 2;
+            }
+
+            // Gambar hasil crop agar pas frame
+            ctx.drawImage(userPhoto, sx, sy, sWidth, sHeight, 0, 0, frameWidth, frameHeight);
+            ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
+
+            const dataURL = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = dataURL;
+            link.download = 'photobooth-result.png';
+            link.click();
+
+            alert("✅ Foto berhasil diunduh!");
+        });
     };
+
 
 
     const handleFileUpload = (event) => {
@@ -145,9 +172,14 @@ const Photobooth = () => {
 
                         <div className="flex space-x-4">
                             <button
+                                onClick={() => setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'))}
+                                className="bg-yellow-500 flex-1 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
+                            >
+                                🔄 Flip Kamera
+                            </button>
+                            <button
                                 onClick={capture}
-                                className="bg-red-500 flex-1  hover:bg-red-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
-
+                                className="bg-red-500 flex-1 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
                             >
                                 Ambil Foto
                             </button>
@@ -158,7 +190,6 @@ const Photobooth = () => {
                                 Batal
                             </button>
                         </div>
-
                     </div>
                 )}
                 {mode === 'frozen' && imageSrc && (
@@ -236,6 +267,7 @@ const Photobooth = () => {
                                 </Resizable>
                             </Draggable>
                         </div>
+
 
                         {/* Kontrol Edit */}
                         <div className="flex space-x-4">
