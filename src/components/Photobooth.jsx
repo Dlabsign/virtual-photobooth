@@ -25,9 +25,49 @@ const Photobooth = () => {
 
     const capture = useCallback(() => {
         const screenshot = webcamRef.current.getScreenshot();
-        setImageSrc(screenshot);
-        setMode('edit');
+        if (screenshot) {
+            setImageSrc(screenshot);
+            // Tetap di mode camera, tapi kita freeze tampilan
+            setMode('frozen');
+        }
     }, [webcamRef]);
+
+    // Download sederhana: gabungkan screenshot + frame
+    const handleDownload = () => {
+        if (!imageSrc || !canvasRef.current) return;
+
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+
+        const frameWidth = 1080;
+        const frameHeight = 1350;
+        canvas.width = frameWidth;
+        canvas.height = frameHeight;
+
+        const frameImage = new Image();
+        frameImage.crossOrigin = 'Anonymous';
+        frameImage.src = '/frame.png';
+
+        const userPhoto = new Image();
+        userPhoto.crossOrigin = 'Anonymous';
+        userPhoto.src = imageSrc;
+
+        frameImage.onload = () => {
+            userPhoto.onload = () => {
+                // Gambar foto user
+                ctx.drawImage(userPhoto, 0, 0, frameWidth, frameHeight);
+                // Overlay frame
+                ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
+                // Download
+                const dataURL = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.href = dataURL;
+                link.download = 'photobooth-result.png';
+                link.click();
+            };
+        };
+    };
+
 
     const handleFileUpload = (event) => {
         const file = event.target.files[0];
@@ -54,72 +94,6 @@ const Photobooth = () => {
         setMode('initial');
         setPhotoSize({ width: 250, height: 250 });
         setPhotoPosition({ x: 0, y: 0 });
-    };
-
-    const handleDownload = () => {
-        if (!imageSrc || !canvasRef.current || !previewContainerRef.current) return;
-
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-
-        // Dimensi Frame Final (1080x1350)
-        const frameWidth = 1080;
-        const frameHeight = 1350;
-
-        // Dimensi Container Pratinjau (sesuai dengan UI saat ini)
-        const previewWidth = previewContainerRef.current.offsetWidth;
-        const previewHeight = previewContainerRef.current.offsetHeight;
-
-        canvas.width = frameWidth;
-        canvas.height = frameHeight;
-
-        // Hitung faktor skala dari pratinjau (misal 400x500) ke final output (1080x1350)
-        const scaleFactorX = frameWidth / previewWidth;
-        const scaleFactorY = frameHeight / previewHeight;
-
-        const frameImage = new Image();
-        frameImage.crossOrigin = 'Anonymous';
-        frameImage.src = '/frame.png';
-
-        frameImage.onload = () => {
-            // 1. Gambar frame terlebih dahulu
-            ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
-
-            const userPhoto = new Image();
-            userPhoto.crossOrigin = 'Anonymous';
-            userPhoto.src = imageSrc;
-
-            userPhoto.onload = () => {
-                // 2. Skalakan posisi dan ukuran foto pengguna
-                const finalPhotoWidth = photoSize.width * scaleFactorX;
-                const finalPhotoHeight = photoSize.height * scaleFactorY;
-                const finalPhotoX = photoPosition.x * scaleFactorX;
-                const finalPhotoY = photoPosition.y * scaleFactorY;
-
-                // 3. Gambar foto pengguna
-                ctx.drawImage(userPhoto, finalPhotoX, finalPhotoY, finalPhotoWidth, finalPhotoHeight);
-
-                // Download
-                try {
-                    const dataURL = canvas.toDataURL('image/png');
-                    const link = document.createElement('a');
-                    link.href = dataURL;
-                    link.download = 'photobooth-result.png';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                } catch (error) {
-                    console.error("Gagal mendownload gambar:", error);
-                    alert("Error: Gagal memproses gambar untuk diunduh.");
-                }
-            };
-            userPhoto.onerror = () => alert("Gagal memuat foto pengguna.");
-        };
-
-        frameImage.onerror = () => {
-            console.error("Gagal memuat file frame.png. Cek path '/frame.png'");
-            alert("Error: File frame.png tidak ditemukan. Pastikan file ada di folder public.");
-        };
     };
 
 
@@ -173,7 +147,7 @@ const Photobooth = () => {
                             <button
                                 onClick={capture}
                                 className="bg-red-500 flex-1  hover:bg-red-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
-                                
+
                             >
                                 Ambil Foto
                             </button>
@@ -185,6 +159,37 @@ const Photobooth = () => {
                             </button>
                         </div>
 
+                    </div>
+                )}
+                {mode === 'frozen' && imageSrc && (
+                    <div className="flex flex-col items-center space-y-4">
+                        <div className="relative w-full max-w-sm aspect-[4/5] bg-gray-800 rounded-lg overflow-hidden shadow-2xl">
+                            <img
+                                src={imageSrc}
+                                alt="Foto Hasil"
+                                className="absolute inset-0 w-full h-full object-cover z-10"
+                            />
+                            <img
+                                src="/frame.png"
+                                alt="Frame"
+                                className="absolute inset-0 w-full h-full z-20 object-contain pointer-events-none"
+                            />
+                        </div>
+                        <div className="flex space-x-4">
+                            <button
+                                onClick={handleDownload}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-lg shadow-lg transition duration-300 transform hover:scale-[1.05]"
+                            >
+                                Download 💾
+                            </button>
+                            <button
+                                onClick={handleReset}
+                                className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-6 rounded-lg shadow-lg transition duration-300 transform hover:scale-[1.05]"
+                            >
+                                Ulangi 🔄
+                            </button>
+                        </div>
+                        <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
                     </div>
                 )}
 
