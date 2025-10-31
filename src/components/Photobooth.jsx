@@ -17,8 +17,8 @@ const Photobooth = () => {
 
     const [facingMode, setFacingMode] = useState('user');
     const videoConstraints = {
-        width: 1080,
-        height: 1350,
+        width: 2560,
+        height: 1440,
         facingMode: facingMode,
     };
 
@@ -27,13 +27,28 @@ const Photobooth = () => {
     const previewContainerRef = useRef(null);
 
     const capture = useCallback(() => {
-        const screenshot = webcamRef.current.getScreenshot();
+        if (!webcamRef.current) return;
+
+        // gunakan captureHD untuk hasil HD
+        const captureHD = () => {
+            const video = webcamRef.current.video;
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataURL = canvas.toDataURL("image/png", 1.0); // kualitas lossless
+            return dataURL;
+        };
+
+        const screenshot = captureHD(); // gunakan HD capture
         if (screenshot) {
             setImageSrc(screenshot);
-            // Tetap di mode camera, tapi kita freeze tampilan
             setMode('frozen');
         }
     }, [webcamRef]);
+
+
 
     // Download sederhana: gabungkan screenshot + frame
     const handleDownload = () => {
@@ -51,6 +66,8 @@ const Photobooth = () => {
         const frameImage = new Image();
         frameImage.crossOrigin = 'Anonymous';
         frameImage.src = '/frame.png';
+
+
 
         const userPhoto = new Image();
         userPhoto.crossOrigin = 'Anonymous';
