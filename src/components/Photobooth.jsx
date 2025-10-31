@@ -125,9 +125,9 @@ const Photobooth = () => {
 
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-grey-900 p-1">
+        <div className="flex flex-col items-center justify-start min-h-screen bg-grey-900 p-1">
             {/* <h1 className="text-3xl font-extrabold mb-8 text-indigo-700">Virtual Photobooth 📸</h1> */}
-            <div className="w-full max-w-xl  shadow-2xl overflow-hidden ">
+            <div className="w-full max-w-xl  ">
 
                 {/* Kontrol Awal */}
                 {mode === 'initial' && (
