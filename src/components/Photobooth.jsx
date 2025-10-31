@@ -183,7 +183,7 @@ const Photobooth = () => {
                                 onClick={() => setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'))}
                                 className="bg-yellow-500 flex-1 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
                             >
-                                🔄 Flip Kamera
+                                🔄 Flip KameraA
                             </button>
                             <button
                                 onClick={capture}
