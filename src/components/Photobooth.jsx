@@ -55,6 +55,15 @@ const Photobooth = () => {
         const userPhoto = new Image();
         userPhoto.crossOrigin = 'Anonymous';
         userPhoto.src = imageSrc;
+        userPhoto.decode().then(() => {
+            ctx.drawImage(userPhoto, sx, sy, sWidth, sHeight, 0, 0, frameWidth, frameHeight);
+            ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
+            const dataURL = canvas.toDataURL('image/png', 1.0); // 1.0 = kualitas maksimum
+            const link = document.createElement('a');
+            link.href = dataURL;
+            link.download = 'photobooth-result.png';
+            link.click();
+        });
 
         Promise.all([
             new Promise((resolve) => (frameImage.onload = resolve)),
@@ -127,7 +136,7 @@ const Photobooth = () => {
     return (
         <div className="flex flex-col items-center justify-start min-h-screen bg-grey-900 p-1">
             {/* <h1 className="text-3xl font-extrabold mb-8 text-indigo-700">Virtual Photobooth 📸</h1> */}
-            <div className="w-full max-w-xl  ">
+            <div className="w-screen h-screen flex flex-col items-center justify-center bg-black overflow-hidden">
 
                 {/* Kontrol Awal */}
                 {mode === 'initial' && (
@@ -147,22 +156,20 @@ const Photobooth = () => {
 
                 {/* Mode Kamera (Frame ditampilkan di atas Webcam) */}
                 {mode === 'camera' && (
-                    <div className="flex flex-col items-center space-y-4">
+                    <div className="fixed inset-0 bg-black flex flex-col items-center justify-center overflow-hidden">
                         {/* Container Webcam + Frame (Proporsional 4:5) */}
                         <div
-                            ref={previewContainerRef} // Ref untuk mendapatkan dimensi saat runtime
-                            className="relative w-full max-w-sm aspect-[4/5] bg-gray-800 rounded-lg overflow-hidden shadow-2xl"
+                            ref={previewContainerRef}
+                            className="relative w-screen aspect-[4/5] bg-black overflow-hidden"
                         >
-                            {/* 1. Webcam di bawah Frame (z-10) */}
                             <Webcam
                                 audio={false}
                                 ref={webcamRef}
-                                screenshotFormat="image/jpeg"
+                                screenshotFormat="image/png"
                                 videoConstraints={videoConstraints}
-                                className="w-full h-full object-cover relative z-10"
+                                className="absolute inset-0 w-full h-full object-cover"
                             />
 
-                            {/* 2. FRAME SEBAGAI OVERLAY DI ATAS WEBCAM (z-20) */}
                             <img
                                 src="/frame.png"
                                 alt="Bingkai Photobooth"
@@ -170,7 +177,8 @@ const Photobooth = () => {
                             />
                         </div>
 
-                        <div className="flex space-x-4">
+                        {/* Tombol kontrol */}
+                        <div className="mt-4 flex w-full px-4 space-x-4">
                             <button
                                 onClick={() => setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'))}
                                 className="bg-yellow-500 flex-1 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
@@ -191,6 +199,7 @@ const Photobooth = () => {
                             </button>
                         </div>
                     </div>
+
                 )}
                 {mode === 'frozen' && imageSrc && (
                     <div className="flex flex-col items-center space-y-4">
@@ -203,7 +212,7 @@ const Photobooth = () => {
                             <img
                                 src="/frame.png"
                                 alt="Frame"
-                                className="absolute inset-0 w-full h-full z-20 object-contain pointer-events-none"
+                                className="absolute inset-0 w-full h-full z-20 object-cover pointer-events-none"
                             />
                         </div>
                         <div className="flex space-x-4">
