@@ -1,0 +1,93 @@
+// const capture = useCallback(() => {
+    //     if (!webcamRef.current) return;
+
+    //     // gunakan captureHD untuk hasil HD
+    //     const captureHD = () => {
+    //         const video = webcamRef.current.video;
+    //         const canvas = document.createElement("canvas");
+    //         canvas.width = video.videoWidth;
+    //         canvas.height = video.videoHeight;
+    //         const ctx = canvas.getContext("2d");
+    //         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    //         const dataURL = canvas.toDataURL("image/png", 1.0); // kualitas lossless
+    //         return dataURL;
+    //     };
+
+    //     const screenshot = captureHD(); // gunakan HD capture
+    //     if (screenshot) {
+    //         setImageSrc(screenshot);
+    //         setMode('frozen');
+    //     }
+    // }, [webcamRef]);
+
+
+
+    // Download sederhana: gabungkan screenshot + frame
+    // const handleDownload = () => {
+    //     if (!imageSrc || !canvasRef.current) return;
+
+    //     const canvas = canvasRef.current;
+    //     const ctx = canvas.getContext('2d');
+
+    //     // Ukuran frame yang diinginkan
+    //     const frameWidth = 1080;
+    //     const frameHeight = 1350;
+    //     canvas.width = frameWidth;
+    //     canvas.height = frameHeight;
+
+    //     const frameImage = new Image();
+    //     frameImage.crossOrigin = 'Anonymous';
+    //     frameImage.src = '/frame.png';
+
+
+
+    //     const userPhoto = new Image();
+    //     userPhoto.crossOrigin = 'Anonymous';
+    //     userPhoto.src = imageSrc;
+    //     userPhoto.decode().then(() => {
+    //         ctx.drawImage(userPhoto, sx, sy, sWidth, sHeight, 0, 0, frameWidth, frameHeight);
+    //         ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
+    //         const dataURL = canvas.toDataURL('image/png', 1.0); // 1.0 = kualitas maksimum
+    //         const link = document.createElement('a');
+    //         link.href = dataURL;
+    //         link.download = 'photobooth-result.png';
+    //         link.click();
+    //     });
+
+    //     Promise.all([
+    //         new Promise((resolve) => (frameImage.onload = resolve)),
+    //         new Promise((resolve) => (userPhoto.onload = resolve)),
+    //     ]).then(() => {
+    //         const imgRatio = userPhoto.width / userPhoto.height;
+    //         const frameRatio = frameWidth / frameHeight;
+
+    //         let sx, sy, sWidth, sHeight;
+
+    //         // Jika gambar lebih lebar → crop sisi kiri-kanan
+    //         if (imgRatio > frameRatio) {
+    //             sHeight = userPhoto.height;
+    //             sWidth = sHeight * frameRatio;
+    //             sx = (userPhoto.width - sWidth) / 2;
+    //             sy = 0;
+    //         }
+    //         // Jika gambar lebih tinggi → crop atas-bawah
+    //         else {
+    //             sWidth = userPhoto.width;
+    //             sHeight = sWidth / frameRatio;
+    //             sx = 0;
+    //             sy = (userPhoto.height - sHeight) / 2;
+    //         }
+
+    //         // Gambar hasil crop agar pas frame
+    //         ctx.drawImage(userPhoto, sx, sy, sWidth, sHeight, 0, 0, frameWidth, frameHeight);
+    //         ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
+
+    //         const dataURL = canvas.toDataURL('image/png');
+    //         const link = document.createElement('a');
+    //         link.href = dataURL;
+    //         link.download = 'photobooth-result.png';
+    //         link.click();
+
+    //         alert("✅ Foto berhasil diunduh!");
+    //     });
+    // };

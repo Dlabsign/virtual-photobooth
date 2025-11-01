@@ -16,6 +16,9 @@ const Photobooth = () => {
     const [notification, setNotification] = useState("");
 
     const [facingMode, setFacingMode] = useState('user');
+    // const [aspectRatio, setAspectRatio] = useState("4:5"); // ✅ pilihan frame
+    const [frameRatio, setFrameRatio] = useState('4-5');
+
     const videoConstraints = {
         width: 2560,
         height: 1440,
@@ -28,98 +31,70 @@ const Photobooth = () => {
 
     const capture = useCallback(() => {
         if (!webcamRef.current) return;
-
-        // gunakan captureHD untuk hasil HD
-        const captureHD = () => {
-            const video = webcamRef.current.video;
-            const canvas = document.createElement("canvas");
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const dataURL = canvas.toDataURL("image/png", 1.0); // kualitas lossless
-            return dataURL;
-        };
-
-        const screenshot = captureHD(); // gunakan HD capture
-        if (screenshot) {
-            setImageSrc(screenshot);
-            setMode('frozen');
-        }
-    }, [webcamRef]);
+        const video = webcamRef.current.video;
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataURL = canvas.toDataURL("image/png", 1.0);
+        setImageSrc(dataURL);
+        setMode("frozen");
+    }, []);
 
 
 
-    // Download sederhana: gabungkan screenshot + frame
     const handleDownload = () => {
         if (!imageSrc || !canvasRef.current) return;
 
         const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext("2d");
 
-        // Ukuran frame yang diinginkan
+        const isStory = aspectRatio === "9:16";
         const frameWidth = 1080;
-        const frameHeight = 1350;
+        const frameHeight = isStory ? 1920 : 1350;
+        const frameSrc = isStory ? "/frame-story.png" : "/frame.png";
+
         canvas.width = frameWidth;
         canvas.height = frameHeight;
 
         const frameImage = new Image();
-        frameImage.crossOrigin = 'Anonymous';
-        frameImage.src = '/frame.png';
-
-
-
         const userPhoto = new Image();
-        userPhoto.crossOrigin = 'Anonymous';
+        frameImage.crossOrigin = userPhoto.crossOrigin = "Anonymous";
+        frameImage.src = frameSrc;
         userPhoto.src = imageSrc;
-        userPhoto.decode().then(() => {
-            ctx.drawImage(userPhoto, sx, sy, sWidth, sHeight, 0, 0, frameWidth, frameHeight);
-            ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
-            const dataURL = canvas.toDataURL('image/png', 1.0); // 1.0 = kualitas maksimum
-            const link = document.createElement('a');
-            link.href = dataURL;
-            link.download = 'photobooth-result.png';
-            link.click();
-        });
 
         Promise.all([
-            new Promise((resolve) => (frameImage.onload = resolve)),
-            new Promise((resolve) => (userPhoto.onload = resolve)),
+            new Promise((res) => (frameImage.onload = res)),
+            new Promise((res) => (userPhoto.onload = res)),
         ]).then(() => {
             const imgRatio = userPhoto.width / userPhoto.height;
             const frameRatio = frameWidth / frameHeight;
 
             let sx, sy, sWidth, sHeight;
-
-            // Jika gambar lebih lebar → crop sisi kiri-kanan
             if (imgRatio > frameRatio) {
                 sHeight = userPhoto.height;
                 sWidth = sHeight * frameRatio;
                 sx = (userPhoto.width - sWidth) / 2;
                 sy = 0;
-            }
-            // Jika gambar lebih tinggi → crop atas-bawah
-            else {
+            } else {
                 sWidth = userPhoto.width;
                 sHeight = sWidth / frameRatio;
                 sx = 0;
                 sy = (userPhoto.height - sHeight) / 2;
             }
 
-            // Gambar hasil crop agar pas frame
             ctx.drawImage(userPhoto, sx, sy, sWidth, sHeight, 0, 0, frameWidth, frameHeight);
             ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
 
-            const dataURL = canvas.toDataURL('image/png');
-            const link = document.createElement('a');
+            const dataURL = canvas.toDataURL("image/png", 1.0);
+            const link = document.createElement("a");
             link.href = dataURL;
-            link.download = 'photobooth-result.png';
+            link.download = isStory ? "photobooth-story.png" : "photobooth-post.png";
             link.click();
-
             alert("✅ Foto berhasil diunduh!");
         });
     };
-
 
 
     const handleFileUpload = (event) => {
@@ -174,10 +149,13 @@ const Photobooth = () => {
                 {/* Mode Kamera (Frame ditampilkan di atas Webcam) */}
                 {mode === 'camera' && (
                     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center overflow-hidden">
-                        {/* Container Webcam + Frame (Proporsional 4:5) */}
+
+                        {/* FRAME RATIO STATE */}
+                        {/* Tambahkan state di komponen utama: const [frameRatio, setFrameRatio] = useState('4-5'); */}
+
                         <div
                             ref={previewContainerRef}
-                            className="relative w-screen aspect-[4/5] bg-black overflow-hidden"
+                            className={`relative w-screen ${frameRatio === '4-5' ? 'aspect-[4/5]' : 'aspect-[9/16]'} bg-black overflow-hidden`}
                         >
                             <Webcam
                                 audio={false}
@@ -188,25 +166,31 @@ const Photobooth = () => {
                             />
 
                             <img
-                                src="/frame.png"
+                                src={frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'}
                                 alt="Bingkai Photobooth"
                                 className="absolute inset-0 w-full h-full z-20 object-contain pointer-events-none"
                             />
                         </div>
 
                         {/* Tombol kontrol */}
-                        <div className="mt-4 flex w-full px-4 space-x-4">
+                        <div className="mt-4 flex w-full px-4 space-x-3">
                             <button
                                 onClick={() => setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'))}
                                 className="bg-yellow-500 flex-1 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
                             >
-                                🔄 Flip KameraA
+                                🔄 Flip Kamera
                             </button>
                             <button
                                 onClick={capture}
                                 className="bg-red-500 flex-1 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
                             >
                                 Ambil Foto
+                            </button>
+                            <button
+                                onClick={() => setFrameRatio((prev) => (prev === '4-5' ? '9-16' : '4-5'))}
+                                className="bg-blue-500 flex-1 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
+                            >
+                                {frameRatio === '4-5' ? '📱 Vertikal' : '🖼️ Horizontal'}
                             </button>
                             <button
                                 onClick={handleReset}
@@ -216,18 +200,19 @@ const Photobooth = () => {
                             </button>
                         </div>
                     </div>
-
                 )}
+
+                {/* Mode Frozen */}
                 {mode === 'frozen' && imageSrc && (
                     <div className="flex flex-col items-center space-y-4">
-                        <div className="relative w-full max-w-sm aspect-[4/5] bg-gray-800 rounded-lg overflow-hidden shadow-2xl">
+                        <div className={`relative w-full max-w-sm ${frameRatio === '4-5' ? 'aspect-[4/5]' : 'aspect-[9/16]'} bg-gray-800 rounded-lg overflow-hidden shadow-2xl`}>
                             <img
                                 src={imageSrc}
                                 alt="Foto Hasil"
                                 className="absolute inset-0 w-full h-full object-cover z-10"
                             />
                             <img
-                                src="/frame.png"
+                                src={frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'}
                                 alt="Frame"
                                 className="absolute inset-0 w-full h-full z-20 object-cover pointer-events-none"
                             />
@@ -249,6 +234,7 @@ const Photobooth = () => {
                         <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
                     </div>
                 )}
+
 
                 {/* Mode Edit (Frame ditampilkan di atas Foto) */}
                 {mode === 'edit' && imageSrc && (
