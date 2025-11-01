@@ -1,84 +1,146 @@
 // src/components/Photobooth.jsx
-import React, { useState, useRef, useCallback } from "react";
-import Webcam from "react-webcam";
-import Draggable from "react-draggable";
-import { Resizable } from "react-resizable";
-import "../resizable.css";
+import React, { useState, useRef, useCallback } from 'react';
+import Webcam from 'react-webcam';
+import Draggable from 'react-draggable';
+import { Resizable } from 'react-resizable';
+import '../resizable.css'; // Pastikan file CSS ini ada dan diimpor
+
 
 const Photobooth = () => {
     const webcamRef = useRef(null);
     const [imageSrc, setImageSrc] = useState(null);
-    const [mode, setMode] = useState("initial");
+    const [mode, setMode] = useState('initial'); // 'initial', 'camera', 'upload', 'edit'
+    // Ukuran default pratinjau foto
     const [photoSize, setPhotoSize] = useState({ width: 250, height: 250 });
     const [photoPosition, setPhotoPosition] = useState({ x: 0, y: 0 });
-    const [facingMode, setFacingMode] = useState("user");
-    const [frameRatio, setFrameRatio] = useState("4-5");
+    const [notification, setNotification] = useState("");
 
-    const videoConstraints = frameRatio === '4-5'
-        ? { width: { ideal: 1080 }, height: { ideal: 1350 }, facingMode }
-        : { width: { ideal: 1080 }, height: { ideal: 1920 }, facingMode };
+    const [facingMode, setFacingMode] = useState('user');
+    const [aspectRatio, setAspectRatio] = useState("4:5"); // ✅ pilihan frame
+    const videoConstraints = {
+        width: 2560,
+        height: 1440,
+        facingMode: facingMode,
+    };
 
 
     const canvasRef = useRef(null);
     const previewContainerRef = useRef(null);
 
-    // ✅ Ambil foto HD sesuai rasio (1080x1350 atau 1080x1920)
     const capture = useCallback(() => {
         if (!webcamRef.current) return;
         const video = webcamRef.current.video;
-        if (!video) return;
-
-        // ukuran target output
-        const outW = frameRatio === '4-5' ? 1080 : 1080;
-        const outH = frameRatio === '4-5' ? 1350 : 1920;
-
-        // sumber video dimensi natural
-        const vw = video.videoWidth;
-        const vh = video.videoHeight;
-        if (!vw || !vh) return;
-
-        // rasio sumber & target
-        const srcRatio = vw / vh;
-        const dstRatio = outW / outH;
-
-        let sx = 0, sy = 0, sWidth = vw, sHeight = vh;
-
-        // crop center depending on ratio comparison
-        if (srcRatio > dstRatio) {
-            // source lebih lebar -> crop sisi kiri/kanan
-            sHeight = vh;
-            sWidth = Math.round(sHeight * dstRatio);
-            sx = Math.round((vw - sWidth) / 2);
-            sy = 0;
-        } else {
-            // source lebih tinggi -> crop atas/bawah
-            sWidth = vw;
-            sHeight = Math.round(sWidth / dstRatio);
-            sx = 0;
-            sy = Math.round((vh - sHeight) / 2);
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = outW;
-        canvas.height = outH;
-        const ctx = canvas.getContext('2d');
-
-        // gambar crop-center dari video ke canvas target (no stretch)
-        ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, outW, outH);
-
-        const dataURL = canvas.toDataURL('image/png', 1.0);
-        setImageSrc(dataURL);
-        setMode('frozen');
-    }, [frameRatio]);
-
-    // ✅ Download dengan kualitas HD + alert
-    const handleDownload = () => {
-        if (!imageSrc) return;
-
         const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataURL = canvas.toDataURL("image/png", 1.0);
+        setImageSrc(dataURL);
+        setMode("frozen");
+    }, []);
+
+    // const capture = useCallback(() => {
+    //     if (!webcamRef.current) return;
+
+    //     // gunakan captureHD untuk hasil HD
+    //     const captureHD = () => {
+    //         const video = webcamRef.current.video;
+    //         const canvas = document.createElement("canvas");
+    //         canvas.width = video.videoWidth;
+    //         canvas.height = video.videoHeight;
+    //         const ctx = canvas.getContext("2d");
+    //         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    //         const dataURL = canvas.toDataURL("image/png", 1.0); // kualitas lossless
+    //         return dataURL;
+    //     };
+
+    //     const screenshot = captureHD(); // gunakan HD capture
+    //     if (screenshot) {
+    //         setImageSrc(screenshot);
+    //         setMode('frozen');
+    //     }
+    // }, [webcamRef]);
+
+
+
+    // Download sederhana: gabungkan screenshot + frame
+    // const handleDownload = () => {
+    //     if (!imageSrc || !canvasRef.current) return;
+
+    //     const canvas = canvasRef.current;
+    //     const ctx = canvas.getContext('2d');
+
+    //     // Ukuran frame yang diinginkan
+    //     const frameWidth = 1080;
+    //     const frameHeight = 1350;
+    //     canvas.width = frameWidth;
+    //     canvas.height = frameHeight;
+
+    //     const frameImage = new Image();
+    //     frameImage.crossOrigin = 'Anonymous';
+    //     frameImage.src = '/frame.png';
+
+
+
+    //     const userPhoto = new Image();
+    //     userPhoto.crossOrigin = 'Anonymous';
+    //     userPhoto.src = imageSrc;
+    //     userPhoto.decode().then(() => {
+    //         ctx.drawImage(userPhoto, sx, sy, sWidth, sHeight, 0, 0, frameWidth, frameHeight);
+    //         ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
+    //         const dataURL = canvas.toDataURL('image/png', 1.0); // 1.0 = kualitas maksimum
+    //         const link = document.createElement('a');
+    //         link.href = dataURL;
+    //         link.download = 'photobooth-result.png';
+    //         link.click();
+    //     });
+
+    //     Promise.all([
+    //         new Promise((resolve) => (frameImage.onload = resolve)),
+    //         new Promise((resolve) => (userPhoto.onload = resolve)),
+    //     ]).then(() => {
+    //         const imgRatio = userPhoto.width / userPhoto.height;
+    //         const frameRatio = frameWidth / frameHeight;
+
+    //         let sx, sy, sWidth, sHeight;
+
+    //         // Jika gambar lebih lebar → crop sisi kiri-kanan
+    //         if (imgRatio > frameRatio) {
+    //             sHeight = userPhoto.height;
+    //             sWidth = sHeight * frameRatio;
+    //             sx = (userPhoto.width - sWidth) / 2;
+    //             sy = 0;
+    //         }
+    //         // Jika gambar lebih tinggi → crop atas-bawah
+    //         else {
+    //             sWidth = userPhoto.width;
+    //             sHeight = sWidth / frameRatio;
+    //             sx = 0;
+    //             sy = (userPhoto.height - sHeight) / 2;
+    //         }
+
+    //         // Gambar hasil crop agar pas frame
+    //         ctx.drawImage(userPhoto, sx, sy, sWidth, sHeight, 0, 0, frameWidth, frameHeight);
+    //         ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
+
+    //         const dataURL = canvas.toDataURL('image/png');
+    //         const link = document.createElement('a');
+    //         link.href = dataURL;
+    //         link.download = 'photobooth-result.png';
+    //         link.click();
+
+    //         alert("✅ Foto berhasil diunduh!");
+    //     });
+    // };
+
+    const handleDownload = () => {
+        if (!imageSrc || !canvasRef.current) return;
+
+        const canvas = canvasRef.current;
         const ctx = canvas.getContext("2d");
 
-        const isStory = frameRatio === "9-16";
+        const isStory = aspectRatio === "9:16";
         const frameWidth = 1080;
         const frameHeight = isStory ? 1920 : 1350;
         const frameSrc = isStory ? "/frame-story.png" : "/frame.png";
@@ -88,7 +150,7 @@ const Photobooth = () => {
 
         const frameImage = new Image();
         const userPhoto = new Image();
-        frameImage.crossOrigin = userPhoto.crossOrigin = "anonymous";
+        frameImage.crossOrigin = userPhoto.crossOrigin = "Anonymous";
         frameImage.src = frameSrc;
         userPhoto.src = imageSrc;
 
@@ -96,51 +158,34 @@ const Photobooth = () => {
             new Promise((res) => (frameImage.onload = res)),
             new Promise((res) => (userPhoto.onload = res)),
         ]).then(() => {
-            // background putih agar tidak gelap
-            ctx.fillStyle = "white";
-            ctx.fillRect(0, 0, frameWidth, frameHeight);
-
             const imgRatio = userPhoto.width / userPhoto.height;
-            const frameRatioNum = frameWidth / frameHeight;
+            const frameRatio = frameWidth / frameHeight;
 
             let sx, sy, sWidth, sHeight;
-            if (imgRatio > frameRatioNum) {
+            if (imgRatio > frameRatio) {
                 sHeight = userPhoto.height;
-                sWidth = sHeight * frameRatioNum;
+                sWidth = sHeight * frameRatio;
                 sx = (userPhoto.width - sWidth) / 2;
                 sy = 0;
             } else {
                 sWidth = userPhoto.width;
-                sHeight = sWidth / frameRatioNum;
+                sHeight = sWidth / frameRatio;
                 sx = 0;
                 sy = (userPhoto.height - sHeight) / 2;
             }
 
-            ctx.drawImage(
-                userPhoto,
-                sx,
-                sy,
-                sWidth,
-                sHeight,
-                0,
-                0,
-                frameWidth,
-                frameHeight
-            );
-            ctx.globalCompositeOperation = "source-over";
+            ctx.drawImage(userPhoto, sx, sy, sWidth, sHeight, 0, 0, frameWidth, frameHeight);
             ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
 
             const dataURL = canvas.toDataURL("image/png", 1.0);
             const link = document.createElement("a");
             link.href = dataURL;
             link.download = isStory ? "photobooth-story.png" : "photobooth-post.png";
-            document.body.appendChild(link);
             link.click();
-            document.body.removeChild(link);
-
             alert("✅ Foto berhasil diunduh!");
         });
     };
+
 
     const handleFileUpload = (event) => {
         const file = event.target.files[0];
@@ -148,7 +193,7 @@ const Photobooth = () => {
             const reader = new FileReader();
             reader.onloadend = () => {
                 setImageSrc(reader.result);
-                setMode("edit");
+                setMode('edit');
             };
             reader.readAsDataURL(file);
         }
@@ -164,91 +209,82 @@ const Photobooth = () => {
 
     const handleReset = () => {
         setImageSrc(null);
-        setMode("initial");
+        setMode('initial');
         setPhotoSize({ width: 250, height: 250 });
         setPhotoPosition({ x: 0, y: 0 });
     };
 
+
     return (
         <div className="flex flex-col items-center justify-start min-h-screen bg-grey-900 p-1">
+            {/* <h1 className="text-3xl font-extrabold mb-8 text-indigo-700">Virtual Photobooth 📸</h1> */}
             <div className="w-screen h-screen flex flex-col items-center justify-center bg-black overflow-hidden">
-                {/* Mode Awal */}
-                {mode === "initial" && (
+
+                {/* Kontrol Awal */}
+                {mode === 'initial' && (
                     <div className="flex flex-col space-y-4">
                         <button
-                            onClick={() => setMode("camera")}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded shadow-md transition duration-300"
+                            onClick={() => setMode('camera')}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded shadow-md transition duration-300 transform hover:scale-[1.02]"
                         >
                             Buka Kamera 📷
                         </button>
-                        <label className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded shadow-md text-center cursor-pointer">
+                        <label className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded shadow-md transition duration-300 text-center cursor-pointer transform hover:scale-[1.02]">
                             Unggah Foto
-                            <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleFileUpload}
-                                className="hidden"
-                            />
+                            <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
                         </label>
                     </div>
                 )}
 
-                {/* Mode Kamera */}
-                {mode === "camera" && (
+                {/* Mode Kamera (Frame ditampilkan di atas Webcam) */}
+                {mode === 'camera' && (
                     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center overflow-hidden">
+
+                        {/* FRAME RATIO STATE */}
+                        {/* Tambahkan state di komponen utama: const [frameRatio, setFrameRatio] = useState('4-5'); */}
+
                         <div
                             ref={previewContainerRef}
-                            className={`relative w-screen ${frameRatio === "4-5" ? "aspect-[4/5]" : "aspect-[9/16]"
-                                } bg-black overflow-hidden`}
+                            className={`relative w-screen ${frameRatio === '4-5' ? 'aspect-[4/5]' : 'aspect-[9/16]'} bg-black overflow-hidden`}
                         >
-                            {/* Webcam tampil penuh */}
                             <Webcam
                                 audio={false}
                                 ref={webcamRef}
                                 screenshotFormat="image/png"
                                 videoConstraints={videoConstraints}
-                                className="absolute inset-0 w-full h-full object-cover bg-black"
+                                className="absolute inset-0 w-full h-full object-cover"
                             />
 
-
-                            {/* Frame visual */}
                             <img
-                                src={
-                                    frameRatio === "4-5" ? "/frame.png" : "/frame-story.png"
-                                }
-                                alt="Frame"
-                                className="absolute inset-0 w-full h-full z-30 object-contain pointer-events-none"
+                                src={frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'}
+                                alt="Bingkai Photobooth"
+                                className="absolute inset-0 w-full h-full z-20 object-contain pointer-events-none"
                             />
                         </div>
 
+                        {/* Tombol kontrol */}
                         <div className="mt-4 flex w-full px-4 space-x-3">
                             <button
-                                onClick={() =>
-                                    setFacingMode((prev) =>
-                                        prev === "user" ? "environment" : "user"
-                                    )
-                                }
-                                className="bg-yellow-500 flex-1 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg"
+                                onClick={() => setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'))}
+                                className="bg-yellow-500 flex-1 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
                             >
                                 🔄 Flip Kamera
                             </button>
                             <button
                                 onClick={capture}
-                                className="bg-red-500 flex-1 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg"
+                                className="bg-red-500 flex-1 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
                             >
                                 Ambil Foto
                             </button>
                             <button
-                                onClick={() =>
-                                    setFrameRatio((prev) => (prev === "4-5" ? "9-16" : "4-5"))
-                                }
-                                className="bg-blue-500 flex-1 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg"
+                                onClick={() => setFrameRatio((prev) => (prev === '4-5' ? '9-16' : '4-5'))}
+                                className="bg-blue-500 flex-1 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
                             >
-                                {frameRatio === "4-5" ? "Feed" : "Story"}
+                                {frameRatio === '4-5' ? '📱 Vertikal' : '🖼️ Horizontal'}
                             </button>
                             <button
                                 onClick={handleReset}
-                                className="bg-gray-400 flex-1 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg"
+                                className="bg-gray-400 flex-1 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
                             >
                                 Batal
                             </button>
@@ -257,39 +293,103 @@ const Photobooth = () => {
                 )}
 
                 {/* Mode Frozen */}
-                {mode === "frozen" && imageSrc && (
+                {mode === 'frozen' && imageSrc && (
                     <div className="flex flex-col items-center space-y-4">
-                        <div
-                            className={`relative w-full max-w-sm ${frameRatio === "4-5" ? "aspect-[4/5]" : "aspect-[9/16]"
-                                } bg-gray-800 rounded-lg overflow-hidden shadow-2xl`}
-                        >
+                        <div className={`relative w-full max-w-sm ${frameRatio === '4-5' ? 'aspect-[4/5]' : 'aspect-[9/16]'} bg-gray-800 rounded-lg overflow-hidden shadow-2xl`}>
                             <img
                                 src={imageSrc}
-                                alt="Foto"
+                                alt="Foto Hasil"
                                 className="absolute inset-0 w-full h-full object-cover z-10"
                             />
                             <img
-                                src={
-                                    frameRatio === "4-5" ? "/frame.png" : "/frame-story.png"
-                                }
+                                src={frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'}
                                 alt="Frame"
-                                className="absolute inset-0 w-full h-full z-20 object-cover"
+                                className="absolute inset-0 w-full h-full z-20 object-cover pointer-events-none"
                             />
                         </div>
                         <div className="flex space-x-4">
                             <button
                                 onClick={handleDownload}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-lg shadow-lg"
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-lg shadow-lg transition duration-300 transform hover:scale-[1.05]"
                             >
                                 Download 💾
                             </button>
                             <button
                                 onClick={handleReset}
-                                className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-6 rounded-lg shadow-lg"
+                                className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-6 rounded-lg shadow-lg transition duration-300 transform hover:scale-[1.05]"
                             >
                                 Ulangi 🔄
                             </button>
                         </div>
+                        <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
+                    </div>
+                )}
+
+
+                {/* Mode Edit (Frame ditampilkan di atas Foto) */}
+                {mode === 'edit' && imageSrc && (
+                    <div className="flex flex-col items-center space-y-6">
+
+                        {/* Area "Canvas" - Proporsional 4:5 */}
+                        <div
+                            ref={previewContainerRef} // Ref untuk mendapatkan dimensi saat runtime
+                            className="relative w-full max-w-sm aspect-[4/5] bg-gray-800 border-8 border-gray-700 rounded-lg overflow-hidden shadow-2xl"
+                        >
+                            {/* 1. FRAME SEBAGAI OVERLAY (z-20) */}
+                            <img
+                                src="/frame.png"
+                                alt="Bingkai Photobooth"
+                                className="absolute inset-0 w-full h-full z-20 object-contain pointer-events-none"
+                            />
+
+                            {/* 2. Draggable/Resizable Foto (z-10) */}
+                            <Draggable
+                                bounds="parent"
+                                onStop={onDragStop}
+                                position={photoPosition}
+                            >
+                                <Resizable
+                                    width={photoSize.width}
+                                    height={photoSize.height}
+                                    onResize={onResize}
+                                    minConstraints={[50, 50]}
+                                    // Batasan sekitar 400x500 di UI Preview
+                                    maxConstraints={[400, 500]}
+                                >
+                                    <img
+                                        src={imageSrc}
+                                        alt="Foto yang Diunggah/Diambil"
+                                        style={{
+                                            width: photoSize.width,
+                                            height: photoSize.height,
+                                            cursor: 'move',
+                                        }}
+                                        className="object-cover absolute z-10"
+                                    />
+                                </Resizable>
+                            </Draggable>
+                        </div>
+
+
+                        {/* Kontrol Edit */}
+                        <div className="flex space-x-4">
+                            <button
+                                onClick={handleDownload}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-lg shadow-lg transition duration-300 transform hover:scale-[1.05]"
+                            >
+                                Selesai & Download 💾
+                            </button>
+                            <button
+                                onClick={handleReset}
+                                className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-6 rounded-lg shadow-lg transition duration-300 transform hover:scale-[1.05]"
+                            >
+                                Ulangi 🔄
+                            </button>
+                        </div>
+
+                        {/* Hidden Canvas untuk Proses Download */}
+                        <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
+
                     </div>
                 )}
             </div>
