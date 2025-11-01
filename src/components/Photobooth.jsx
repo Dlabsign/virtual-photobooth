@@ -24,8 +24,6 @@ const Photobooth = () => {
         height: 1440,
         facingMode: facingMode,
     };
-
-
     const canvasRef = useRef(null);
     const previewContainerRef = useRef(null);
 
@@ -42,15 +40,13 @@ const Photobooth = () => {
         setMode("frozen");
     }, []);
 
-
-
     const handleDownload = () => {
         if (!imageSrc || !canvasRef.current) return;
 
         const canvas = canvasRef.current;
         const ctx = canvas.getContext("2d");
 
-        const isStory = aspectRatio === "9:16";
+        const isStory = frameRatio === "9:16";
         const frameWidth = 1080;
         const frameHeight = isStory ? 1920 : 1350;
         const frameSrc = isStory ? "/frame-story.png" : "/frame.png";
@@ -58,6 +54,9 @@ const Photobooth = () => {
         canvas.width = frameWidth;
         canvas.height = frameHeight;
 
+
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, frameWidth, frameHeight);
         const frameImage = new Image();
         const userPhoto = new Image();
         frameImage.crossOrigin = userPhoto.crossOrigin = "Anonymous";
@@ -84,8 +83,10 @@ const Photobooth = () => {
                 sy = (userPhoto.height - sHeight) / 2;
             }
 
+
             ctx.drawImage(userPhoto, sx, sy, sWidth, sHeight, 0, 0, frameWidth, frameHeight);
             ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
+
 
             const dataURL = canvas.toDataURL("image/png", 1.0);
             const link = document.createElement("a");
@@ -129,7 +130,6 @@ const Photobooth = () => {
         <div className="flex flex-col items-center justify-start min-h-screen bg-grey-900 p-1">
             {/* <h1 className="text-3xl font-extrabold mb-8 text-indigo-700">Virtual Photobooth 📸</h1> */}
             <div className="w-screen h-screen flex flex-col items-center justify-center bg-black overflow-hidden">
-
                 {/* Kontrol Awal */}
                 {mode === 'initial' && (
                     <div className="flex flex-col space-y-4">
@@ -147,61 +147,62 @@ const Photobooth = () => {
                 )}
 
                 {/* Mode Kamera (Frame ditampilkan di atas Webcam) */}
-                {mode === 'camera' && (
-                    <div className="fixed inset-0 bg-black flex flex-col items-center justify-center overflow-hidden">
+                <div className="bg-black">
+                    {mode === 'camera' && (
+                        <div className="fixed inset-0 bg-black flex flex-col items-center justify-center overflow-hidden">
 
-                        {/* FRAME RATIO STATE */}
-                        {/* Tambahkan state di komponen utama: const [frameRatio, setFrameRatio] = useState('4-5'); */}
+                            {/* FRAME RATIO STATE */}
+                            {/* Tambahkan state di komponen utama: const [frameRatio, setFrameRatio] = useState('4-5'); */}
 
-                        <div
-                            ref={previewContainerRef}
-                            className={`relative w-screen ${frameRatio === '4-5' ? 'aspect-[4/5]' : 'aspect-[9/16]'} bg-black overflow-hidden`}
-                        >
-                            <Webcam
-                                audio={false}
-                                ref={webcamRef}
-                                screenshotFormat="image/png"
-                                videoConstraints={videoConstraints}
-                                className="absolute inset-0 w-full h-full object-cover"
-                            />
+                            <div
+                                ref={previewContainerRef}
+                                className={`relative w-screen ${frameRatio === '4-5' ? 'aspect-[4/5]' : 'aspect-[9/16]'} bg-black overflow-hidden`}
+                            >
+                                <Webcam
+                                    audio={false}
+                                    ref={webcamRef}
+                                    screenshotFormat="image/png"
+                                    videoConstraints={videoConstraints}
+                                    className="absolute inset-0 w-full h-full object-cover"
+                                />
 
-                            <img
-                                src={frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'}
-                                alt="Bingkai Photobooth"
-                                className="absolute inset-0 w-full h-full z-20 object-contain pointer-events-none"
-                            />
+                                <img
+                                    src={frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'}
+                                    alt="Bingkai Photobooth"
+                                    className="absolute inset-0 w-full h-full z-20 object-contain pointer-events-none"
+                                />
+                            </div>
+
+                            {/* Tombol kontrol */}
+                            <div className="mt-4 flex w-full px-4 space-x-3">
+                                <button
+                                    onClick={() => setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'))}
+                                    className="bg-yellow-500 flex-1 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
+                                >
+                                    🔄 Flip Kamera
+                                </button>
+                                <button
+                                    onClick={capture}
+                                    className="bg-red-500 flex-1 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
+                                >
+                                    Ambil Foto
+                                </button>
+                                <button
+                                    onClick={() => setFrameRatio((prev) => (prev === '4-5' ? '9-16' : '4-5'))}
+                                    className="bg-blue-500 flex-1 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
+                                >
+                                    {frameRatio === '4-5' ? '📱 Vertikal' : '🖼️ Horizontal'}
+                                </button>
+                                <button
+                                    onClick={handleReset}
+                                    className="bg-gray-400 flex-1 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
+                                >
+                                    Batal
+                                </button>
+                            </div>
                         </div>
-
-                        {/* Tombol kontrol */}
-                        <div className="mt-4 flex w-full px-4 space-x-3">
-                            <button
-                                onClick={() => setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'))}
-                                className="bg-yellow-500 flex-1 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
-                            >
-                                🔄 Flip Kamera
-                            </button>
-                            <button
-                                onClick={capture}
-                                className="bg-red-500 flex-1 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
-                            >
-                                Ambil Foto
-                            </button>
-                            <button
-                                onClick={() => setFrameRatio((prev) => (prev === '4-5' ? '9-16' : '4-5'))}
-                                className="bg-blue-500 flex-1 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
-                            >
-                                {frameRatio === '4-5' ? '📱 Vertikal' : '🖼️ Horizontal'}
-                            </button>
-                            <button
-                                onClick={handleReset}
-                                className="bg-gray-400 flex-1 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
-                            >
-                                Batal
-                            </button>
-                        </div>
-                    </div>
-                )}
-
+                    )}
+                </div>
                 {/* Mode Frozen */}
                 {mode === 'frozen' && imageSrc && (
                     <div className="flex flex-col items-center space-y-4">
