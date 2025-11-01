@@ -46,7 +46,7 @@ const Photobooth = () => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext("2d");
 
-        const isStory = frameRatio === "9:16";
+        const isStory = frameRatio === "9-16";
         const frameWidth = 1080;
         const frameHeight = isStory ? 1920 : 1350;
         const frameSrc = isStory ? "/frame-story.png" : "/frame.png";
