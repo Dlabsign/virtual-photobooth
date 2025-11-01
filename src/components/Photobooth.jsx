@@ -152,38 +152,31 @@ const Photobooth = () => {
                     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center overflow-hidden">
                         <div
                             ref={previewContainerRef}
-                            className={`relative w-screen ${frameRatio === '4-5' ? 'aspect-[4/5]' : 'aspect-[9/16]'} bg-black overflow-hidden`}
+                            className={`relative w-screen ${frameRatio === '4-5' ? 'aspect-[4/5]' : 'aspect-[9/16]'
+                                } bg-black overflow-hidden`}
+                            style={{
+                                WebkitMaskImage: `url(${frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'})`,
+                                maskImage: `url(${frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'})`,
+                                WebkitMaskSize: 'cover',
+                                maskSize: 'cover',
+                                WebkitMaskRepeat: 'no-repeat',
+                                maskRepeat: 'no-repeat',
+                                WebkitMaskPosition: 'center',
+                                maskPosition: 'center'
+                            }}
                         >
-                            {/* Webcam tampil penuh */}
                             <Webcam
                                 audio={false}
                                 ref={webcamRef}
                                 screenshotFormat="image/png"
                                 videoConstraints={videoConstraints}
-                                className="absolute inset-0 w-full h-full object-contain bg-black"
+                                className="absolute inset-0 w-full h-full object-cover"
                             />
 
-                            {/* Lapisan mask frame */}
-                            <div
-                                className="absolute inset-0 z-20 pointer-events-none"
-                                style={{
-                                    WebkitMaskImage: `url(${frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'})`,
-                                    maskImage: `url(${frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'})`,
-                                    WebkitMaskSize: 'cover',
-                                    maskSize: 'cover',
-                                    WebkitMaskRepeat: 'no-repeat',
-                                    maskRepeat: 'no-repeat',
-                                    WebkitMaskPosition: 'center',
-                                    maskPosition: 'center',
-                                    backgroundColor: 'rgba(0,0,0,0.5)' // opsional, untuk gelap di luar frame
-                                }}
-                            ></div>
-
-                            {/* Gambar frame visual (tanpa pengaruh ke mask video) */}
                             <img
                                 src={frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'}
                                 alt="Frame"
-                                className="absolute inset-0 w-full h-full z-30 object-cover pointer-events-none"
+                                className="absolute inset-0 w-full h-full z-20 object-cover pointer-events-none"
                             />
                         </div>
 
