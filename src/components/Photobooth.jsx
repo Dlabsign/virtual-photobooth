@@ -45,12 +45,12 @@ const Photobooth = () => {
 
 
     const handleDownload = () => {
-        if (!imageSrc || !canvasRef.current) return;
+        if (!imageSrc) return;
 
-        const canvas = canvasRef.current;
+        const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
 
-        const isStory = aspectRatio === "9:16";
+        const isStory = frameRatio === "9-16";
         const frameWidth = 1080;
         const frameHeight = isStory ? 1920 : 1350;
         const frameSrc = isStory ? "/frame-story.png" : "/frame.png";
@@ -60,7 +60,7 @@ const Photobooth = () => {
 
         const frameImage = new Image();
         const userPhoto = new Image();
-        frameImage.crossOrigin = userPhoto.crossOrigin = "Anonymous";
+        frameImage.crossOrigin = userPhoto.crossOrigin = "anonymous";
         frameImage.src = frameSrc;
         userPhoto.src = imageSrc;
 
@@ -69,17 +69,17 @@ const Photobooth = () => {
             new Promise((res) => (userPhoto.onload = res)),
         ]).then(() => {
             const imgRatio = userPhoto.width / userPhoto.height;
-            const frameRatio = frameWidth / frameHeight;
+            const frameRatioNum = frameWidth / frameHeight;
 
             let sx, sy, sWidth, sHeight;
-            if (imgRatio > frameRatio) {
+            if (imgRatio > frameRatioNum) {
                 sHeight = userPhoto.height;
-                sWidth = sHeight * frameRatio;
+                sWidth = sHeight * frameRatioNum;
                 sx = (userPhoto.width - sWidth) / 2;
                 sy = 0;
             } else {
                 sWidth = userPhoto.width;
-                sHeight = sWidth / frameRatio;
+                sHeight = sWidth / frameRatioNum;
                 sx = 0;
                 sy = (userPhoto.height - sHeight) / 2;
             }
@@ -91,10 +91,12 @@ const Photobooth = () => {
             const link = document.createElement("a");
             link.href = dataURL;
             link.download = isStory ? "photobooth-story.png" : "photobooth-post.png";
+            document.body.appendChild(link);
             link.click();
-            alert("✅ Foto berhasil diunduh!");
+            document.body.removeChild(link);
         });
     };
+
 
 
     const handleFileUpload = (event) => {
