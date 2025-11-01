@@ -45,58 +45,56 @@ const Photobooth = () => {
 
 
     const handleDownload = () => {
-    if (!imageSrc) return;
+        if (!imageSrc || !canvasRef.current) return;
 
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext("2d");
 
-    const isStory = frameRatio === "9-16";
-    const frameWidth = 1080;
-    const frameHeight = isStory ? 1920 : 1350;
-    const frameSrc = isStory ? "/frame-story.png" : "/frame.png";
+        const isStory = aspectRatio === "9:16";
+        const frameWidth = 1080;
+        const frameHeight = isStory ? 1920 : 1350;
+        const frameSrc = isStory ? "/frame-story.png" : "/frame.png";
 
-    canvas.width = frameWidth;
-    canvas.height = frameHeight;
+        canvas.width = frameWidth;
+        canvas.height = frameHeight;
 
-    const frameImage = new Image();
-    const userPhoto = new Image();
-    frameImage.crossOrigin = userPhoto.crossOrigin = "anonymous";
-    frameImage.src = frameSrc;
-    userPhoto.src = imageSrc;
+        const frameImage = new Image();
+        const userPhoto = new Image();
+        frameImage.crossOrigin = userPhoto.crossOrigin = "Anonymous";
+        frameImage.src = frameSrc;
+        userPhoto.src = imageSrc;
 
-    Promise.all([
-        new Promise((res) => (frameImage.onload = res)),
-        new Promise((res) => (userPhoto.onload = res)),
-    ]).then(() => {
-        const imgRatio = userPhoto.width / userPhoto.height;
-        const frameRatioNum = frameWidth / frameHeight;
+        Promise.all([
+            new Promise((res) => (frameImage.onload = res)),
+            new Promise((res) => (userPhoto.onload = res)),
+        ]).then(() => {
+            const imgRatio = userPhoto.width / userPhoto.height;
+            const frameRatio = frameWidth / frameHeight;
 
-        let sx, sy, sWidth, sHeight;
-        if (imgRatio > frameRatioNum) {
-            sHeight = userPhoto.height;
-            sWidth = sHeight * frameRatioNum;
-            sx = (userPhoto.width - sWidth) / 2;
-            sy = 0;
-        } else {
-            sWidth = userPhoto.width;
-            sHeight = sWidth / frameRatioNum;
-            sx = 0;
-            sy = (userPhoto.height - sHeight) / 2;
-        }
+            let sx, sy, sWidth, sHeight;
+            if (imgRatio > frameRatio) {
+                sHeight = userPhoto.height;
+                sWidth = sHeight * frameRatio;
+                sx = (userPhoto.width - sWidth) / 2;
+                sy = 0;
+            } else {
+                sWidth = userPhoto.width;
+                sHeight = sWidth / frameRatio;
+                sx = 0;
+                sy = (userPhoto.height - sHeight) / 2;
+            }
 
-        ctx.drawImage(userPhoto, sx, sy, sWidth, sHeight, 0, 0, frameWidth, frameHeight);
-        ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
+            ctx.drawImage(userPhoto, sx, sy, sWidth, sHeight, 0, 0, frameWidth, frameHeight);
+            ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
 
-        const dataURL = canvas.toDataURL("image/png", 1.0);
-        const link = document.createElement("a");
-        link.href = dataURL;
-        link.download = isStory ? "photobooth-story.png" : "photobooth-post.png";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    });
-};
-
+            const dataURL = canvas.toDataURL("image/png", 1.0);
+            const link = document.createElement("a");
+            link.href = dataURL;
+            link.download = isStory ? "photobooth-story.png" : "photobooth-post.png";
+            link.click();
+            alert("✅ Foto berhasil diunduh!");
+        });
+    };
 
 
     const handleFileUpload = (event) => {
@@ -149,24 +147,15 @@ const Photobooth = () => {
                 )}
 
                 {/* Mode Kamera (Frame ditampilkan di atas Webcam) */}
-                {/* Mode Kamera */}
                 {mode === 'camera' && (
                     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center overflow-hidden">
 
+                        {/* FRAME RATIO STATE */}
+                        {/* Tambahkan state di komponen utama: const [frameRatio, setFrameRatio] = useState('4-5'); */}
+
                         <div
                             ref={previewContainerRef}
-                            className={`relative w-screen ${frameRatio === '4-5' ? 'aspect-[4/5]' : 'aspect-[9/16]'
-                                } bg-black overflow-hidden`}
-                            style={{
-                                WebkitMaskImage: `url(${frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'})`,
-                                maskImage: `url(${frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'})`,
-                                WebkitMaskSize: 'cover',
-                                maskSize: 'cover',
-                                WebkitMaskRepeat: 'no-repeat',
-                                maskRepeat: 'no-repeat',
-                                WebkitMaskPosition: 'center',
-                                maskPosition: 'center'
-                            }}
+                            className={`relative w-screen ${frameRatio === '4-5' ? 'aspect-[4/5]' : 'aspect-[9/16]'} bg-black overflow-hidden`}
                         >
                             <Webcam
                                 audio={false}
@@ -176,11 +165,10 @@ const Photobooth = () => {
                                 className="absolute inset-0 w-full h-full object-cover"
                             />
 
-                            {/* Frame visual, hanya sebagai dekorasi (tidak mempengaruhi mask) */}
                             <img
                                 src={frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'}
                                 alt="Bingkai Photobooth"
-                                className="absolute inset-0 w-full h-full z-20 object-cover pointer-events-none"
+                                className="absolute inset-0 w-full h-full z-20 object-contain pointer-events-none"
                             />
                         </div>
 
@@ -213,7 +201,6 @@ const Photobooth = () => {
                         </div>
                     </div>
                 )}
-
 
                 {/* Mode Frozen */}
                 {mode === 'frozen' && imageSrc && (
