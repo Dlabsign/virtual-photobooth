@@ -147,15 +147,24 @@ const Photobooth = () => {
                 )}
 
                 {/* Mode Kamera (Frame ditampilkan di atas Webcam) */}
+                {/* Mode Kamera */}
                 {mode === 'camera' && (
                     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center overflow-hidden">
 
-                        {/* FRAME RATIO STATE */}
-                        {/* Tambahkan state di komponen utama: const [frameRatio, setFrameRatio] = useState('4-5'); */}
-
                         <div
                             ref={previewContainerRef}
-                            className={`relative w-screen ${frameRatio === '4-5' ? 'aspect-[4/5]' : 'aspect-[9/16]'} bg-black overflow-hidden`}
+                            className={`relative w-screen ${frameRatio === '4-5' ? 'aspect-[4/5]' : 'aspect-[9/16]'
+                                } bg-black overflow-hidden`}
+                            style={{
+                                WebkitMaskImage: `url(${frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'})`,
+                                maskImage: `url(${frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'})`,
+                                WebkitMaskSize: 'cover',
+                                maskSize: 'cover',
+                                WebkitMaskRepeat: 'no-repeat',
+                                maskRepeat: 'no-repeat',
+                                WebkitMaskPosition: 'center',
+                                maskPosition: 'center'
+                            }}
                         >
                             <Webcam
                                 audio={false}
@@ -165,10 +174,11 @@ const Photobooth = () => {
                                 className="absolute inset-0 w-full h-full object-cover"
                             />
 
+                            {/* Frame visual, hanya sebagai dekorasi (tidak mempengaruhi mask) */}
                             <img
                                 src={frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'}
                                 alt="Bingkai Photobooth"
-                                className="absolute inset-0 w-full h-full z-20 object-contain pointer-events-none"
+                                className="absolute inset-0 w-full h-full z-20 object-cover pointer-events-none"
                             />
                         </div>
 
@@ -201,6 +211,7 @@ const Photobooth = () => {
                         </div>
                     </div>
                 )}
+
 
                 {/* Mode Frozen */}
                 {mode === 'frozen' && imageSrc && (
