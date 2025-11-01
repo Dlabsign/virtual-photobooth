@@ -33,8 +33,19 @@ const Photobooth = () => {
         const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
+
         const ctx = canvas.getContext("2d");
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        // Balik hasil gambar hanya jika kamera depan
+        if (facingMode === "user") {
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+        }
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Reset transform biar tidak ngaruh ke frame berikutnya
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         const dataURL = canvas.toDataURL("image/png", 1.0);
         setImageSrc(dataURL);
         setMode("frozen");
@@ -82,7 +93,13 @@ const Photobooth = () => {
                 sx = 0;
                 sy = (userPhoto.height - sHeight) / 2;
             }
-
+            if (facingMode === "user") {
+                ctx.translate(frameWidth, 0);
+                ctx.scale(-1, 1);
+            }
+            ctx.drawImage(userPhoto, sx, sy, sWidth, sHeight, 0, 0, frameWidth, frameHeight);
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
 
             ctx.drawImage(userPhoto, sx, sy, sWidth, sHeight, 0, 0, frameWidth, frameHeight);
             ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
@@ -163,8 +180,10 @@ const Photobooth = () => {
                                     ref={webcamRef}
                                     screenshotFormat="image/png"
                                     videoConstraints={videoConstraints}
-                                    className="absolute inset-0 w-full h-full object-cover"
+                                    className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''
+                                        }`}
                                 />
+
 
                                 <img
                                     src={frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'}
@@ -210,7 +229,7 @@ const Photobooth = () => {
                             <img
                                 src={imageSrc}
                                 alt="Foto Hasil"
-                                className="absolute inset-0 w-full h-full object-cover z-10"
+                                className="absolute inset-0 w-full h-full object-cover z-10 "
                             />
                             <img
                                 src={frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'}
