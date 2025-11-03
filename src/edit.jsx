@@ -1,21 +1,20 @@
 import { useRef, useState, forwardRef, useImperativeHandle, useEffect } from "react";
-// Resizable tidak digunakan
-// import { Resizable } from "react-resizable";
 
 const PhotoMaskEditor = forwardRef(
     ({ imageSrc, facingMode = "environment" }, ref) => {
+        // ... (Semua state dan fungsi dari handleDownload sampai useImperativeHandle
+        // ... tidak ada yang berubah di sini, jadi saya sembunyikan agar ringkas) ...
+
         const [offset, setOffset] = useState({ x: 0, y: 0 });
         const [dragging, setDragging] = useState(false);
         const [startPos, setStartPos] = useState({ x: 0, y: 0 });
         const [editable, setEditable] = useState(false);
         const [finished, setFinished] = useState(false);
         const [currentFrame, setCurrentFrame] = useState("4-5");
-
         const [scale, setScale] = useState(1);
         const [isPinching, setIsPinching] = useState(false);
         const initialPinchDistance = useRef(0);
         const initialScale = useRef(1);
-
         const editorRef = useRef(null);
         const canvasRef = useRef(null);
 
@@ -29,7 +28,6 @@ const PhotoMaskEditor = forwardRef(
             }
         }, [imageSrc]);
 
-        // --- FUNGSI HELPER ---
         const getDistance = (touches) => {
             const [touch1, touch2] = touches;
             return Math.sqrt(
@@ -40,7 +38,6 @@ const PhotoMaskEditor = forwardRef(
 
         const clampScale = (newScale) => Math.max(0.5, Math.min(newScale, 4));
 
-        // --- EVENT HANDLERS (MOUSE) ---
         const handleMouseDown = (e) => {
             if (!editable) return;
             e.preventDefault();
@@ -65,10 +62,8 @@ const PhotoMaskEditor = forwardRef(
             setScale((prevScale) => clampScale(prevScale + scaleAmount));
         };
 
-        // --- EVENT HANDLERS (TOUCH) ---
         const handleTouchStart = (e) => {
             if (!editable) return;
-            // e.preventDefault(); // Kita pindahkan ke handleTouchMove
             if (e.touches.length === 2) {
                 setIsPinching(true);
                 setDragging(false);
@@ -84,7 +79,7 @@ const PhotoMaskEditor = forwardRef(
 
         const handleTouchMove = (e) => {
             if (!editable) return;
-            e.preventDefault(); // Cegah scroll halaman HANYA saat sedang drag/pinch
+            e.preventDefault();
             if (isPinching && e.touches.length === 2) {
                 const newDistance = getDistance(e.touches);
                 const scaleFactor = newDistance / initialPinchDistance.current;
@@ -104,7 +99,6 @@ const PhotoMaskEditor = forwardRef(
             initialScale.current = scale;
         };
 
-        // --- FUNGSI DOWNLOAD (Sama seperti sebelumnya, sudah benar) ---
         const handleDownload = () => {
             if (!imageSrc || !canvasRef.current || !editorRef.current) return;
             const canvas = canvasRef.current;
@@ -176,28 +170,29 @@ const PhotoMaskEditor = forwardRef(
             downloadPhoto: handleDownload,
         }));
 
+        if (!imageSrc) {
+            return null;
+        }
+
         const isStory = currentFrame === "9-16";
         const aspectRatio = isStory ? "9 / 16" : "4 / 5";
         const frameSrc = isStory ? "/frame-story.png" : "/frame.png";
 
         return (
             <div
-                className="flex flex-col items-center space-y-6"
+                // PERBAIKAN 1: Hapus 'items-center'
+                className="flex flex-col space-y-6"
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
             >
                 <div
                     ref={editorRef}
-                    className="relative w-full max-w-sm rounded-xl overflow-hidden bg-gray-900 shadow-2xl transition-all"
+                    // PERBAIKAN 2: Hapus 'max-w-sm'
+                    className="relative w-full rounded-xl overflow-hidden bg-gray-900 shadow-2xl transition-all"
                     style={{ aspectRatio }}
-                    onWheel={handleWheel} // Wheel zoom untuk desktop
+                    onWheel={handleWheel}
                 >
-                    {/* --- PERBAIKAN UTAMA DI SINI --- */}
-                    {/* 1. 'div' ini sekarang menjadi target sentuh/klik.
-            2. 'div' ini juga yang menerima style 'transform'.
-            3. 'div' overlay transparan dihapus.
-          */}
                     <div
                         className="w-full h-full"
                         onMouseDown={handleMouseDown}
@@ -208,7 +203,7 @@ const PhotoMaskEditor = forwardRef(
                             transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
                             transition: isPinching ? "none" : "transform 0.05s ease-out",
                             cursor: editable ? (dragging ? "grabbing" : "grab") : "default",
-                            touchAction: "none", // Mencegah browser scroll/zoom
+                            touchAction: "none",
                         }}
                     >
                         <img
@@ -216,15 +211,9 @@ const PhotoMaskEditor = forwardRef(
                             alt="Foto"
                             draggable={false}
                             className="w-full h-full object-cover select-none"
-                        // Event handler dipindah ke 'div' pembungkus
                         />
                     </div>
-                    {/* --- AKHIR PERBAIKAN --- */}
 
-                    {/* Overlay dihapus dari sini */}
-                    {/* <div className="absolute inset-0" ... /> */}
-
-                    {/* Frame (tetap di atas, tidak berubah) */}
                     <img
                         src={frameSrc}
                         alt="Frame"
@@ -232,9 +221,10 @@ const PhotoMaskEditor = forwardRef(
                     />
                 </div>
 
-                {/* Tombol Kontrol (tidak berubah) */}
+                {/* Tombol Kontrol */}
                 {editable && !finished && (
-                    <div className="flex flex-col items-center space-y-4 w-full max-w-sm">
+                    // PERBAIKAN 3: Hapus 'max-w-sm'
+                    <div className="flex flex-col items-center space-y-4 w-full">
                         <div className="flex space-x-2 w-full">
                             <button
                                 onClick={() => setCurrentFrame("4-5")}
@@ -270,7 +260,8 @@ const PhotoMaskEditor = forwardRef(
                 {finished && (
                     <button
                         onClick={handleDownload}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+                        // Anda mungkin ingin menambahkan 'w-full' di sini juga agar konsisten
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg w-full"
                     >
                         Download
                     </button>
