@@ -210,7 +210,7 @@ const PhotoMaskEditor = forwardRef(
                             src={imageSrc}
                             alt="Foto"
                             draggable={false}
-                            className="w-full h-full object-cover select-none"
+                            className="w-full h-full object-contain select-none"
                         />
                     </div>
 
@@ -244,16 +244,17 @@ const PhotoMaskEditor = forwardRef(
                             >
                                 Story
                             </button>
+                            <button
+                                onClick={() => {
+                                    setEditable(false);
+                                    setFinished(true);
+                                }}
+                                className="px-4 py-2 bg-green-600 text-white rounded-lg w-full"
+                            >
+                                Selesai
+                            </button>
                         </div>
-                        <button
-                            onClick={() => {
-                                setEditable(false);
-                                setFinished(true);
-                            }}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg w-full"
-                        >
-                            Selesai
-                        </button>
+
                     </div>
                 )}
 
@@ -265,6 +266,7 @@ const PhotoMaskEditor = forwardRef(
                     >
                         Download
                     </button>
+
                 )}
 
                 <canvas ref={canvasRef} style={{ display: "none" }} />
