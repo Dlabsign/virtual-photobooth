@@ -1,287 +1,281 @@
-import { useRef, useState, forwardRef, useImperativeHandle, useEffect } from "react";
-// Resizable tidak digunakan
-// import { Resizable } from "react-resizable";
+// src/components/Photobooth.jsx
+import React, { useState, useRef, useCallback } from 'react';
+import Webcam from 'react-webcam';
+import Draggable from 'react-draggable';
+import { Resizable } from 'react-resizable';
+import '../resizable.css'; // Pastikan file CSS ini ada dan diimpor
+import PhotoMaskEditor from '../edit';
 
-const PhotoMaskEditor = forwardRef(
-  ({ imageSrc, facingMode = "environment" }, ref) => {
-    const [offset, setOffset] = useState({ x: 0, y: 0 });
-    const [dragging, setDragging] = useState(false);
-    const [startPos, setStartPos] = useState({ x: 0, y: 0 });
-    const [editable, setEditable] = useState(false);
-    const [finished, setFinished] = useState(false);
-    const [currentFrame, setCurrentFrame] = useState("4-5");
 
-    const [scale, setScale] = useState(1);
-    const [isPinching, setIsPinching] = useState(false);
-    const initialPinchDistance = useRef(0);
-    const initialScale = useRef(1);
 
-    const editorRef = useRef(null);
+const Photobooth = () => {
+    const webcamRef = useRef(null);
+    const [imageSrc, setImageSrc] = useState(null);
+    const [mode, setMode] = useState('initial'); // 'initial', 'camera', 'upload', 'edit'
+    // Ukuran default pratinjau foto
+    const [photoSize, setPhotoSize] = useState({ width: 250, height: 250 });
+    const [photoPosition, setPhotoPosition] = useState({ x: 0, y: 0 });
+    const [notification, setNotification] = useState("");
+
+    const [facingMode, setFacingMode] = useState('user');
+    // const [aspectRatio, setAspectRatio] = useState("4:5"); // ✅ pilihan frame
+    const [frameRatio, setFrameRatio] = useState('4-5');
+
+    const videoConstraints = {
+        width: 2560,
+        height: 1440,
+        facingMode: facingMode,
+    };
     const canvasRef = useRef(null);
+    const previewContainerRef = useRef(null);
 
-    useEffect(() => {
-      if (imageSrc) {
-        setEditable(true);
-        setFinished(false);
-        setOffset({ x: 0, y: 0 });
-        setScale(1);
-        initialScale.current = 1;
-      }
-    }, [imageSrc]);
+    const capture = useCallback(() => {
+        if (!webcamRef.current) return;
+        const video = webcamRef.current.video;
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
 
-    // --- FUNGSI HELPER ---
-    const getDistance = (touches) => {
-      const [touch1, touch2] = touches;
-      return Math.sqrt(
-        Math.pow(touch2.clientX - touch1.clientX, 2) +
-        Math.pow(touch2.clientY - touch1.clientY, 2)
-      );
-    };
-    
-    const clampScale = (newScale) => Math.max(0.5, Math.min(newScale, 4));
-
-    // --- EVENT HANDLERS (MOUSE) ---
-    const handleMouseDown = (e) => {
-      if (!editable) return;
-      e.preventDefault();
-      setDragging(true);
-      setStartPos({ x: e.clientX - offset.x, y: e.clientY - offset.y });
-    };
-
-    const handleMouseMove = (e) => {
-      if (!dragging || !editable) return;
-      setOffset({
-        x: e.clientX - startPos.x,
-        y: e.clientY - startPos.y,
-      });
-    };
-
-    const handleMouseUp = () => setDragging(false);
-
-    const handleWheel = (e) => {
-      if (!editable) return;
-      e.preventDefault();
-      const scaleAmount = e.deltaY > 0 ? -0.1 : 0.1;
-      setScale((prevScale) => clampScale(prevScale + scaleAmount));
-    };
-
-    // --- EVENT HANDLERS (TOUCH) ---
-    const handleTouchStart = (e) => {
-      if (!editable) return;
-      // e.preventDefault(); // Kita pindahkan ke handleTouchMove
-      if (e.touches.length === 2) {
-        setIsPinching(true);
-        setDragging(false);
-        initialPinchDistance.current = getDistance(e.touches);
-        initialScale.current = scale;
-      } else if (e.touches.length === 1) {
-        setDragging(true);
-        setIsPinching(false);
-        const touch = e.touches[0];
-        setStartPos({ x: touch.clientX - offset.x, y: touch.clientY - offset.y });
-      }
-    };
-
-    const handleTouchMove = (e) => {
-      if (!editable) return;
-      e.preventDefault(); // Cegah scroll halaman HANYA saat sedang drag/pinch
-      if (isPinching && e.touches.length === 2) {
-        const newDistance = getDistance(e.touches);
-        const scaleFactor = newDistance / initialPinchDistance.current;
-        setScale(clampScale(initialScale.current * scaleFactor));
-      } else if (dragging && e.touches.length === 1) {
-        const touch = e.touches[0];
-        setOffset({
-          x: touch.clientX - startPos.x,
-          y: touch.clientY - startPos.y,
-        });
-      }
-    };
-
-    const handleTouchEnd = () => {
-      setDragging(false);
-      setIsPinching(false);
-      initialScale.current = scale;
-    };
-
-    // --- FUNGSI DOWNLOAD (Sama seperti sebelumnya, sudah benar) ---
-    const handleDownload = () => {
-      if (!imageSrc || !canvasRef.current || !editorRef.current) return;
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext("2d");
-      const isStory = currentFrame === "9-16";
-      const frameWidth = 1080;
-      const frameHeight = isStory ? 1920 : 1350;
-      const frameSrc = isStory ? "/frame-story.png" : "/frame.png";
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = frameWidth * dpr;
-      canvas.height = frameHeight * dpr;
-      ctx.scale(dpr, dpr);
-      ctx.fillStyle = "#000";
-      ctx.fillRect(0, 0, frameWidth, frameHeight);
-      const frameImage = new Image();
-      const userPhoto = new Image();
-      frameImage.crossOrigin = userPhoto.crossOrigin = "Anonymous";
-      frameImage.src = frameSrc;
-      userPhoto.src = imageSrc;
-      Promise.all([
-        new Promise((res) => (frameImage.onload = res)),
-        new Promise((res) => (userPhoto.onload = res)),
-      ]).then(() => {
-        const editorW = editorRef.current.offsetWidth;
-        const editorToCanvasScale = frameWidth / editorW;
-        ctx.save();
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        // Balik hasil gambar hanya jika kamera depan
         if (facingMode === "user") {
-          ctx.translate(frameWidth, 0);
-          ctx.scale(-1, 1);
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
         }
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
-        const canvasOffsetX = offset.x * editorToCanvasScale;
-        const canvasOffsetY = offset.y * editorToCanvasScale;
-        ctx.translate(canvasOffsetX, canvasOffsetY);
-        ctx.translate(frameWidth / 2, frameHeight / 2);
-        ctx.scale(scale, scale);
-        ctx.translate(-frameWidth / 2, -frameHeight / 2);
-        const imgWidth = userPhoto.naturalWidth;
-        const imgHeight = userPhoto.naturalHeight;
-        const imgRatio = imgWidth / imgHeight;
-        const containerRatio = frameWidth / frameHeight;
-        let sx = 0, sy = 0, sWidth = imgWidth, sHeight = imgHeight;
-        if (imgRatio > containerRatio) {
-          sHeight = imgHeight;
-          sWidth = imgHeight * containerRatio;
-          sx = (imgWidth - sWidth) / 2;
-        } else {
-          sWidth = imgWidth;
-          sHeight = imgWidth / containerRatio;
-          sy = (imgHeight - sHeight) / 2;
-        }
-        ctx.drawImage(
-          userPhoto,
-          sx, sy, sWidth, sHeight,
-          0, 0, frameWidth, frameHeight
-        );
-        ctx.restore();
-        ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Reset transform biar tidak ngaruh ke frame berikutnya
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         const dataURL = canvas.toDataURL("image/png", 1.0);
-        const link = document.createElement("a");
-        link.href = dataURL;
-        link.download = isStory ? "photobooth-story.png" : "photobooth-post.png";
-        link.click();
-      });
+        setImageSrc(dataURL);
+        setMode("frozen");
+    }, []);
+
+    const handleDownload = () => {
+        if (!imageSrc || !canvasRef.current) return;
+
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext("2d");
+
+        const isStory = frameRatio === "9-16";
+        const frameWidth = 1080;
+        const frameHeight = isStory ? 1920 : 1350;
+        const frameSrc = isStory ? "/frame-story.png" : "/frame.png";
+
+        canvas.width = frameWidth;
+        canvas.height = frameHeight;
+
+
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, frameWidth, frameHeight);
+        const frameImage = new Image();
+        const userPhoto = new Image();
+        frameImage.crossOrigin = userPhoto.crossOrigin = "Anonymous";
+        frameImage.src = frameSrc;
+        userPhoto.src = imageSrc;
+
+        Promise.all([
+            new Promise((res) => (frameImage.onload = res)),
+            new Promise((res) => (userPhoto.onload = res)),
+        ]).then(() => {
+            const imgRatio = userPhoto.width / userPhoto.height;
+            const frameRatio = frameWidth / frameHeight;
+
+            let sx, sy, sWidth, sHeight;
+            if (imgRatio > frameRatio) {
+                sHeight = userPhoto.height;
+                sWidth = sHeight * frameRatio;
+                sx = (userPhoto.width - sWidth) / 2;
+                sy = 0;
+            } else {
+                sWidth = userPhoto.width;
+                sHeight = sWidth / frameRatio;
+                sx = 0;
+                sy = (userPhoto.height - sHeight) / 2;
+            }
+            if (facingMode === "user") {
+                ctx.translate(frameWidth, 0);
+                ctx.scale(-1, 1);
+            }
+            ctx.drawImage(userPhoto, sx, sy, sWidth, sHeight, 0, 0, frameWidth, frameHeight);
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
+
+            ctx.drawImage(userPhoto, sx, sy, sWidth, sHeight, 0, 0, frameWidth, frameHeight);
+            ctx.drawImage(frameImage, 0, 0, frameWidth, frameHeight);
+
+
+            const dataURL = canvas.toDataURL("image/png", 1.0);
+            const link = document.createElement("a");
+            link.href = dataURL;
+            link.download = isStory ? "See You At Chrsitmas.png" : "See You At Chrsitmas.png";
+            link.click();
+            // alert("✅ Foto berhasil diunduh!");
+        });
     };
 
-    useImperativeHandle(ref, () => ({
-      downloadPhoto: handleDownload,
-    }));
 
-    const isStory = currentFrame === "9-16";
-    const aspectRatio = isStory ? "9 / 16" : "4 / 5";
-    const frameSrc = isStory ? "/frame-story.png" : "/frame.png";
+    const handleFileUpload = (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const result = reader.result;
+            if (typeof result === "string" && result.startsWith("data:image")) {
+                setImageSrc(result);
+                setMode("edit"); // pindah ke mode edit setelah src valid
+            } else {
+                console.error("File bukan gambar valid.");
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
+
+    const onResize = (event, { size }) => {
+        setPhotoSize(size);
+    };
+
+    const onDragStop = (event, data) => {
+        setPhotoPosition({ x: data.x, y: data.y });
+    };
+
+    const handleReset = () => {
+        setImageSrc(null);
+        setMode('initial');
+        setPhotoSize({ width: 250, height: 250 });
+        setPhotoPosition({ x: 0, y: 0 });
+    };
+
 
     return (
-      <div
-        className="flex flex-col items-center space-y-6"
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-      >
-        <div
-          ref={editorRef}
-          className="relative w-full max-w-sm rounded-xl overflow-hidden bg-gray-900 shadow-2xl transition-all"
-          style={{ aspectRatio }}
-          onWheel={handleWheel} // Wheel zoom untuk desktop
-        >
-          {/* --- PERBAIKAN UTAMA DI SINI --- */}
-          {/* 1. 'div' ini sekarang menjadi target sentuh/klik.
-            2. 'div' ini juga yang menerima style 'transform'.
-            3. 'div' overlay transparan dihapus.
-          */}
-          <div
-            className="w-full h-full"
-            onMouseDown={handleMouseDown}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            style={{
-              transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-              transition: isPinching ? "none" : "transform 0.05s ease-out",
-              cursor: editable ? (dragging ? "grabbing" : "grab") : "default",
-              touchAction: "none", // Mencegah browser scroll/zoom
-            }}
-          >
-            <img
-              src={imageSrc}
-              alt="Foto"
-              draggable={false}
-              className="w-full h-full object-cover select-none"
-              // Event handler dipindah ke 'div' pembungkus
-            />
-          </div>
-          {/* --- AKHIR PERBAIKAN --- */}
-          
-          {/* Overlay dihapus dari sini */}
-          {/* <div className="absolute inset-0" ... /> */}
+        <div className="flex flex-col items-center justify-start min-h-screen bg-grey-900 p-1">
+            {/* <h1 className="text-3xl font-extrabold mb-8 text-indigo-700">Virtual Photobooth 📸</h1> */}
+            <div className="w-screen h-screen flex flex-col items-center justify-center bg-black overflow-hidden">
+                {/* Kontrol Awal */}
+                {mode === 'initial' && (
+                    <div className="flex flex-col space-y-4">
+                        <button
+                            onClick={() => setMode('camera')}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded shadow-md transition duration-300 transform hover:scale-[1.02]"
+                        >
+                            Buka Kamera 📷
+                        </button>
+                        <label className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded shadow-md transition duration-300 text-center cursor-pointer transform hover:scale-[1.02]">
+                            Unggah Foto
+                            <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                        </label>
+                    </div>
+                )}
 
-          {/* Frame (tetap di atas, tidak berubah) */}
-          <img
-            src={frameSrc}
-            alt="Frame"
-            className="absolute inset-0 w-full h-full pointer-events-none"
-          />
-        </div>
+                {/* Mode Kamera (Frame ditampilkan di atas Webcam) */}
+                <div className="bg-black">
+                    {mode === 'camera' && (
+                        <div className="fixed inset-0 bg-black flex flex-col items-center justify-center overflow-hidden">
 
-        {/* Tombol Kontrol (tidak berubah) */}
-        {editable && !finished && (
-          <div className="flex flex-col items-center space-y-4 w-full max-w-sm">
-            <div className="flex space-x-2 w-full">
-              <button
-                onClick={() => setCurrentFrame("4-5")}
-                className={`w-full px-4 py-2 rounded-lg transition-colors ${
-                  currentFrame === "4-5"
-                    ? "bg-blue-600 text-white font-bold"
-                    : "bg-gray-700 text-gray-300"
-                }`}
-              >
-                Feed
-              </button>
-              <button
-                onClick={() => setCurrentFrame("9-16")}
-                className={`w-full px-4 py-2 rounded-lg transition-colors ${
-                  currentFrame === "9-16"
-                    ? "bg-blue-600 text-white font-bold"
-                    : "bg-gray-700 text-gray-300"
-                }`}
-              >
-                Story
-              </button>
+                            {/* FRAME RATIO STATE */}
+                            {/* Tambahkan state di komponen utama: const [frameRatio, setFrameRatio] = useState('4-5'); */}
+
+                            <div
+                                ref={previewContainerRef}
+                                className={`relative w-screen ${frameRatio === '4-5' ? 'aspect-[4/5]' : 'aspect-[9/16]'} bg-black overflow-hidden`}
+                            >
+                                <Webcam
+                                    audio={false}
+                                    ref={webcamRef}
+                                    screenshotFormat="image/png"
+                                    videoConstraints={videoConstraints}
+                                    className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''
+                                        }`}
+                                />
+
+
+                                <img
+                                    src={frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'}
+                                    alt="Bingkai Photobooth"
+                                    className="absolute inset-0 w-full h-full z-20 object-contain pointer-events-none"
+                                />
+                            </div>
+
+                            {/* Tombol kontrol */}
+                            <div className="mt-4 flex w-full px-4 space-x-3">
+                                <button
+                                    onClick={() => setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'))}
+                                    className="bg-yellow-500 flex-1 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
+                                >
+                                    🔄 Flip Kamera
+                                </button>
+                                <button
+                                    onClick={capture}
+                                    className="bg-red-500 flex-1 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
+                                >
+                                    Ambil Foto
+                                </button>
+                                <button
+                                    onClick={() => setFrameRatio((prev) => (prev === '4-5' ? '9-16' : '4-5'))}
+                                    className="bg-blue-500 flex-1 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
+                                >
+                                    {frameRatio === '4-5' ? '📱 Vertikal' : '🖼️ Horizontal'}
+                                </button>
+                                <button
+                                    onClick={handleReset}
+                                    className="bg-gray-400 flex-1 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded text-xs shadow-lg transition duration-300"
+                                >
+                                    Batal
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+                {/* Mode Frozen */}
+                {mode === 'frozen' && imageSrc && (
+                    <div className="flex flex-col items-center space-y-4">
+                        <div className={`relative w-full max-w-sm ${frameRatio === '4-5' ? 'aspect-[4/5]' : 'aspect-[9/16]'} bg-gray-800 rounded-lg overflow-hidden shadow-2xl`}>
+                            <img
+                                src={imageSrc}
+                                alt="Foto Hasil"
+                                className="absolute inset-0 w-full h-full object-cover z-10 "
+                            />
+                            <img
+                                src={frameRatio === '4-5' ? '/frame.png' : '/frame-story.png'}
+                                alt="Frame"
+                                className="absolute inset-0 w-full h-full z-20 object-cover pointer-events-none"
+                            />
+                        </div>
+                        <div className="flex space-x-4">
+                            <button
+                                onClick={handleDownload}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-lg shadow-lg transition duration-300 transform hover:scale-[1.05]"
+                            >
+                                Download 💾
+                            </button>
+                            <button
+                                onClick={handleReset}
+                                className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-6 rounded-lg shadow-lg transition duration-300 transform hover:scale-[1.05]"
+                            >
+                                Ulangi 🔄
+                            </button>
+                        </div>
+                        <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
+                    </div>
+                )}
+
+
+                {/* Mode Edit (Frame ditampilkan di atas Foto) */}
+                {mode === "edit" && imageSrc && (
+                    <PhotoMaskEditor
+                        imageSrc={imageSrc}
+                        onDownload={handleDownload}
+                        onReset={handleReset}
+                    />
+                )}
+
             </div>
-            <button
-              onClick={() => {
-                setEditable(false);
-                setFinished(true);
-              }}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg w-full"
-            >
-              Selesai
-            </button>
-          </div>
-        )}
-
-        {finished && (
-          <button
-            onClick={handleDownload}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-          >
-            Download
-          </button>
-        )}
-
-        <canvas ref={canvasRef} style={{ display: "none" }} />
-      </div>
+        </div>
     );
-  }
-);
+};
 
-export default PhotoMaskEditor;
+export default Photobooth;
