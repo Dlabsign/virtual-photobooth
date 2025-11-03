@@ -4,6 +4,8 @@ import Webcam from 'react-webcam';
 import Draggable from 'react-draggable';
 import { Resizable } from 'react-resizable';
 import '../resizable.css'; // Pastikan file CSS ini ada dan diimpor
+import PhotoMaskEditor from '../edit';
+
 
 
 const Photobooth = () => {
@@ -110,22 +112,28 @@ const Photobooth = () => {
             link.href = dataURL;
             link.download = isStory ? "photobooth-story.png" : "photobooth-post.png";
             link.click();
-            alert("✅ Foto berhasil diunduh!");
+            // alert("✅ Foto berhasil diunduh!");
         });
     };
 
 
     const handleFileUpload = (event) => {
-        const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImageSrc(reader.result);
-                setMode('edit');
-            };
-            reader.readAsDataURL(file);
-        }
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const result = reader.result;
+            if (typeof result === "string" && result.startsWith("data:image")) {
+                setImageSrc(result);
+                setMode("edit"); // pindah ke mode edit setelah src valid
+            } else {
+                console.error("File bukan gambar valid.");
+            }
+        };
+        reader.readAsDataURL(file);
     };
+
 
     const onResize = (event, { size }) => {
         setPhotoSize(size);
@@ -257,71 +265,14 @@ const Photobooth = () => {
 
 
                 {/* Mode Edit (Frame ditampilkan di atas Foto) */}
-                {mode === 'edit' && imageSrc && (
-                    <div className="flex flex-col items-center space-y-6">
-
-                        {/* Area "Canvas" - Proporsional 4:5 */}
-                        <div
-                            ref={previewContainerRef} // Ref untuk mendapatkan dimensi saat runtime
-                            className="relative w-full max-w-sm aspect-[4/5] bg-gray-800 border-8 border-gray-700 rounded-lg overflow-hidden shadow-2xl"
-                        >
-                            {/* 1. FRAME SEBAGAI OVERLAY (z-20) */}
-                            <img
-                                src="/frame.png"
-                                alt="Bingkai Photobooth"
-                                className="absolute inset-0 w-full h-full z-20 object-contain pointer-events-none"
-                            />
-
-                            {/* 2. Draggable/Resizable Foto (z-10) */}
-                            <Draggable
-                                bounds="parent"
-                                onStop={onDragStop}
-                                position={photoPosition}
-                            >
-                                <Resizable
-                                    width={photoSize.width}
-                                    height={photoSize.height}
-                                    onResize={onResize}
-                                    minConstraints={[50, 50]}
-                                    // Batasan sekitar 400x500 di UI Preview
-                                    maxConstraints={[400, 500]}
-                                >
-                                    <img
-                                        src={imageSrc}
-                                        alt="Foto yang Diunggah/Diambil"
-                                        style={{
-                                            width: photoSize.width,
-                                            height: photoSize.height,
-                                            cursor: 'move',
-                                        }}
-                                        className="object-cover absolute z-10"
-                                    />
-                                </Resizable>
-                            </Draggable>
-                        </div>
-
-
-                        {/* Kontrol Edit */}
-                        <div className="flex space-x-4">
-                            <button
-                                onClick={handleDownload}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-lg shadow-lg transition duration-300 transform hover:scale-[1.05]"
-                            >
-                                Selesai & Download 💾
-                            </button>
-                            <button
-                                onClick={handleReset}
-                                className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-6 rounded-lg shadow-lg transition duration-300 transform hover:scale-[1.05]"
-                            >
-                                Ulangi 🔄
-                            </button>
-                        </div>
-
-                        {/* Hidden Canvas untuk Proses Download */}
-                        <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
-
-                    </div>
+                {mode === "edit" && imageSrc && (
+                    <PhotoMaskEditor
+                        imageSrc={imageSrc}
+                        onDownload={handleDownload}
+                        onReset={handleReset}
+                    />
                 )}
+
             </div>
         </div>
     );
